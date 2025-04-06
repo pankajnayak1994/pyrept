@@ -4,6 +4,8 @@
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/pyrept)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pyrept)
 ![GitHub contributors](https://img.shields.io/github/contributors/pankajnayak1994/pyrept)
+![PyPI - License](https://img.shields.io/pypi/l/pyrept)
+
 
 ### Introduction
 A [Nose2] plugin for generating detailed, searchable, and user-friendly HTML and JSON reports of your test results.
