@@ -3,7 +3,7 @@ name: Auto Tag + Publish to PyPI for pyut-reporter package
 on:
   push:
     branches:
-      - master
+      - main
 
 permissions:
   id-token: write
