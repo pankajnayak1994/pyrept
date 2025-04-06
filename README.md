@@ -12,7 +12,7 @@ Key Features:
 - JSON Integration: Provides JSON reports for easy integration with other tools or automated workflows.
 - This plugin is ideal for enhancing test visibility and making debugging more efficient.
 
-![Report Screenshot](https://raw.githubusercontent.com/pankajnayak1994/py-html-json-reporter/master/docs/images/report.png)
+![Report Screenshot](https://raw.githubusercontent.com/pankajnayak1994/pyut-reporter/master/docs/images/report.png)
 
 ### Installation
 You can install the Nose2 HTML Report Plugin using `pip`:
