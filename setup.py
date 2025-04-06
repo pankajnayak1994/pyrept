@@ -8,7 +8,7 @@ setup(
     packages=find_packages(),
     use_scm_version=True,
     setup_requires=['setuptools_scm'],
-    description='This Library Generate a HTML and JSON report for your Nose Unit Tests',
+    description='This library generates both HTML and JSON reports for your Nose unit tests, providing a clear and structured overview of test results.',
     long_description=long_description,
     long_description_content_type="text/markdown",
     author='Pankaj Kumar Nayak',
