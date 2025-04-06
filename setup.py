@@ -9,7 +9,7 @@ setup(
     author='Pankaj Kumar Nayak',
     author_email='nayakpankaj2015@gmail.com',
     license='MIT',
-    install_requires=['jinja2'],
+    install_requires=['jinja2', 'nose2'],
     package_data={
         'pyut-reporter': ['templates/report.html']
     },
