@@ -1,0 +1,6 @@
+coverage
+Jinja2
+MarkupSafe
+nose2
+python-coveralls
+six
