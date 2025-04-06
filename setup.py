@@ -1,12 +1,16 @@
-from setuptools import setup
+from setuptools import setup, find_packages
+
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
 
 setup(
     name='pyut-reporter',
-    packages=['pyut-reporter'],
+    packages=find_packages(),
     use_scm_version=True,
     setup_requires=['setuptools_scm'],
     description='This Library Generate a HTML and JSON report for your Nose Unit Tests',
-    long_description=open('README.md', 'r').read(),
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     author='Pankaj Kumar Nayak',
     author_email='nayakpankaj2015@gmail.com',
     license='MIT',
