@@ -3,7 +3,8 @@ from setuptools import setup
 setup(
     name='pyut-reporter',
     packages=['pyut-reporter'],
-    version='1.0.0',
+    use_scm_version=True,
+    setup_requires=['setuptools_scm'],
     description='This Library Generate a HTML and JSON report for your Nose Unit Tests',
     long_description=open('README.md', 'r').read(),
     author='Pankaj Kumar Nayak',

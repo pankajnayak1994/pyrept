@@ -4,3 +4,4 @@ MarkupSafe
 nose2
 python-coveralls
 six
+setuptools_scm
