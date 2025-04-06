@@ -1,0 +1,10 @@
+coverage:
+  status:
+    project:
+      default:
+        branches:
+          - master
+    patch:
+      default:
+        branches:
+          - master
