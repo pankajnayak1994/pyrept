@@ -5,4 +5,6 @@ nose2
 python-coveralls
 six
 setuptools_scm
+pytest
+pytest-cov
 
