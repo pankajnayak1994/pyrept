@@ -4,7 +4,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name='pyut-reporter',
+    name='pyrept',
     packages=find_packages(),
     use_scm_version=True,
     setup_requires=['setuptools_scm'],
@@ -16,10 +16,10 @@ setup(
     license='MIT',
     install_requires=['jinja2', 'nose2'],
     package_data={
-        'pyut-reporter': ['templates/report.html']
+        'pyrept': ['templates/report.html']
     },
-    url='https://github.com/pankajnayak1994/pyut-reporter',
-    download_url='https://github.com/pankajnayak1994/pyut-reporter',
+    url='https://github.com/pankajnayak1994/pyrept',
+    download_url='https://github.com/pankajnayak1994/pyrept',
     keywords=['nose2', 'testing', 'reporting', 'pytest'],
     classifiers=[
         'Development Status :: 3 - Alpha',

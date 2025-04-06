@@ -12,19 +12,19 @@ Key Features:
 - JSON Integration: Provides JSON reports for easy integration with other tools or automated workflows.
 - This plugin is ideal for enhancing test visibility and making debugging more efficient.
 
-![Report Screenshot](https://raw.githubusercontent.com/pankajnayak1994/pyut-reporter/master/docs/images/report.png)
+![Report Screenshot](https://raw.githubusercontent.com/pankajnayak1994/pyrept/master/docs/images/report.png)
 
 ### Installation
 You can install the Nose2 HTML Report Plugin using `pip`:
 ```
-pip install pyut-reporter
+pip install pyrept
 ```
 
 ### Configuration
 To get `nose2` to recognize the plugin add an entry into the `plugin` key of the `unittest` section of your `nose2.cfg` file. Configurations for the plugin should be placed into an `html-report` section of the configuration file. Below is a working example:
 ```
 [unittest]
-plugins = pyut-reporter.html_report
+plugins = pyrept.html_report
 
 [html-report]
 always-on = True
@@ -34,7 +34,7 @@ always-on = True
 Specify the path for the HTML report. Defaults to `report.html`
 ```
 [unittest]
-plugins = pyut-reporter.html_report
+plugins = pyrept.html_report
 
 [html-report]
 always-on = True

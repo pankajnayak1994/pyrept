@@ -3,7 +3,7 @@ import unittest
 from nose2 import events, result
 from nose2.session import Session
 
-from py_html_json_reporter.html_report import HTMLReporter
+from pyrept.html_report import HTMLReporter
 
 
 def _test_func():

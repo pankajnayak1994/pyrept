@@ -6,4 +6,4 @@ def main_run(name):
 
 # Run This Simple script for Python env Test
 if __name__ == '__main__':
-    main_run('PyAutoX')
+    main_run('pyrept')

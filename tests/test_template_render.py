@@ -1,7 +1,7 @@
 import unittest
 from jinja2 import Template
 
-from py_html_json_reporter.render import render_template
+from pyrept.render import render_template
 
 
 class TemplateRenderingTests(unittest.TestCase):

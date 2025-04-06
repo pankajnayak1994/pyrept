@@ -1,10 +1,10 @@
-name: Auto Tag + Publish to PyPI for pyut-reporter package
+name: Auto Tag + Publish to PyPI for pyrept package
 
 on:
   pull_request:
     types: [closed]
     branches:
-      - main
+      - master
 
 permissions:
   contents: write
