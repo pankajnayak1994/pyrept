@@ -1,224 +1,268 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>Report</title>
-        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
-        <style>
-            code > pre {
-                background-color: #D9D9D9;
-            }
-            .test-case {
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ test_report_title|e }}</title>
+{%- set s = test_summary %}
+{%- set executed = s.total - s.skipped %}
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #667085; --border: #e3e6eb;
+  --pass: #1a7f4b; --pass-bg: #e6f4ec; --fail: #c4321f; --fail-bg: #fdecea;
+  --error: #9a3412; --error-bg: #fff1e6; --skip: #8a6d00; --skip-bg: #fff8db;
+  --accent: #3559c7; --code-bg: #f1f3f6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151b; --panel: #1b1f27; --text: #e6e8ec; --muted: #9aa3b2; --border: #2c323d;
+    --pass: #4cc38a; --pass-bg: #15301f; --fail: #ff6b5a; --fail-bg: #3a1a17;
+    --error: #ff9d5c; --error-bg: #3a2414; --skip: #e5c454; --skip-bg: #332b0f;
+    --accent: #7c9bff; --code-bg: #12151b;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151b; --panel: #1b1f27; --text: #e6e8ec; --muted: #9aa3b2; --border: #2c323d;
+  --pass: #4cc38a; --pass-bg: #15301f; --fail: #ff6b5a; --fail-bg: #3a1a17;
+  --error: #ff9d5c; --error-bg: #3a2414; --skip: #e5c454; --skip-bg: #332b0f;
+  --accent: #7c9bff; --code-bg: #12151b;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+h1 { margin: 0; font-size: 24px; }
+.sub { color: var(--muted); font-size: 13px; }
+button, .chip { font: inherit; cursor: pointer; border: 1px solid var(--border); background: var(--panel);
+  color: var(--text); border-radius: 8px; padding: 6px 12px; }
+button:hover, .chip:hover { border-color: var(--accent); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.card .value { font-size: 28px; font-weight: 650; }
+.v-pass { color: var(--pass); } .v-fail { color: var(--fail); } .v-error { color: var(--error); } .v-skip { color: var(--skip); }
+.overview { display: grid; grid-template-columns: 220px 1fr 1fr; gap: 12px; margin-top: 12px; }
+@media (max-width: 860px) { .overview { grid-template-columns: 1fr; } }
+.donut { width: 140px; height: 140px; border-radius: 50%; margin: 6px auto; position: relative;
+  background: conic-gradient(var(--pass) 0 var(--p1), var(--fail) 0 var(--p2), var(--error) 0 var(--p3), var(--skip) 0 100%); }
+.donut.empty { background: var(--border); }
+.donut::after { content: ""; position: absolute; inset: 22px; border-radius: 50%; background: var(--panel); }
+.donut span { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; font-size: 22px; font-weight: 650; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center; font-size: 12px; color: var(--muted); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
+table.kv { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.kv td { padding: 4px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+table.kv td:first-child { color: var(--muted); width: 38%; padding-right: 10px; }
+table.kv td:last-child { word-break: break-word; }
+h2 { font-size: 13px; margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.toolbar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 14px 0 10px; margin-top: 16px;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.toolbar input { flex: 1 1 260px; min-width: 0; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel); color: var(--text); font: inherit; }
+.chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.count { opacity: .8; margin-left: 4px; }
+.tests { display: flex; flex-direction: column; gap: 6px; }
+details.test { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 10px; }
+details.test.passed { border-left-color: var(--pass); } details.test.failed { border-left-color: var(--fail); }
+details.test.error { border-left-color: var(--error); } details.test.skipped { border-left-color: var(--skip); }
+details.test > summary { list-style: none; cursor: pointer; padding: 10px 14px; display: flex; gap: 10px; align-items: center; }
+details.test > summary::-webkit-details-marker { display: none; }
+.badge { flex: none; font-size: 11px; font-weight: 650; text-transform: uppercase; border-radius: 6px; padding: 2px 8px; }
+.b-passed { color: var(--pass); background: var(--pass-bg); } .b-failed { color: var(--fail); background: var(--fail-bg); }
+.b-error { color: var(--error); background: var(--error-bg); } .b-skipped { color: var(--skip); background: var(--skip-bg); }
+.tname { flex: 1; min-width: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+.dur { flex: none; color: var(--muted); font-size: 12px; }
+.tag { font-size: 11px; color: var(--accent); border: 1px solid var(--border); border-radius: 999px; padding: 0 7px; margin-left: 4px; }
+.body { padding: 0 14px 14px; border-top: 1px solid var(--border); }
+.body h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 14px 0 6px; }
+.desc { white-space: pre-wrap; margin: 0; }
+pre.tb { position: relative; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+  overflow: auto; max-height: 420px; font-size: 12px; margin: 0; white-space: pre; }
+.copy { position: sticky; float: right; top: 0; font-size: 11px; padding: 2px 8px; }
+.attachments { display: flex; flex-wrap: wrap; gap: 12px; }
+.attachments figure { margin: 0; max-width: 100%; }
+.attachments img { max-width: min(520px, 100%); border: 1px solid var(--border); border-radius: 8px; cursor: zoom-in; display: block; }
+.attachments figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.meta { color: var(--muted); font-size: 12px; }
+.empty-state { text-align: center; color: var(--muted); padding: 40px; display: none; }
+footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: center; }
+footer a { color: var(--accent); }
+.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.8); display: none; place-items: center; z-index: 50; padding: 20px; }
+.lightbox img { max-width: 100%; max-height: 100%; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>{{ test_report_title|e }}</h1>
+      <div class="sub">Generated {{ timestamp }}{% if duration is not none %} · Total time {{ '%.2f'|format(duration) }}s{% endif %}</div>
+    </div>
+    <button id="theme" type="button" title="Toggle dark mode">Toggle theme</button>
+  </header>
 
-            }
-            .test-case--passed {
-                background-color: #A1D490;
-            }
-            .test-case--failed {
-                background-color: #F25757;
-            }
-            .test-case--warning {
+  <section class="grid" aria-label="Summary">
+    <div class="card"><div class="label">Total</div><div class="value">{{ s.total }}</div></div>
+    <div class="card"><div class="label">Passed</div><div class="value v-pass">{{ s.passed }}</div></div>
+    <div class="card"><div class="label">Failed</div><div class="value v-fail">{{ s.failed }}</div></div>
+    <div class="card"><div class="label">Errors</div><div class="value v-error">{{ s.error }}</div></div>
+    <div class="card"><div class="label">Skipped</div><div class="value v-skip">{{ s.skipped }}</div></div>
+    <div class="card"><div class="label">Pass rate</div><div class="value">{{ s.percentage }}%</div></div>
+  </section>
 
-            }
+  <section class="overview">
+    <div class="card">
+      <h2>Outcome</h2>
+      {%- set t = s.total if s.total else 1 %}
+      {%- set p1 = (s.passed * 100 / t) %}{% set p2 = p1 + (s.failed * 100 / t) %}{% set p3 = p2 + (s.error * 100 / t) %}
+      <div class="donut{% if not s.total %} empty{% endif %}" style="--p1: {{ '%.2f'|format(p1) }}%; --p2: {{ '%.2f'|format(p2) }}%; --p3: {{ '%.2f'|format(p3) }}%;"
+           role="img" aria-label="{{ s.passed }} passed, {{ s.failed }} failed, {{ s.error }} errors, {{ s.skipped }} skipped">
+        <span>{{ s.percentage }}%</span>
+      </div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--pass)"></i>Passed</span>
+        <span><i class="dot" style="background:var(--fail)"></i>Failed</span>
+        <span><i class="dot" style="background:var(--error)"></i>Error</span>
+        <span><i class="dot" style="background:var(--skip)"></i>Skipped</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Environment</h2>
+      <table class="kv">
+        {% for key, value in (environment or {}).items() %}<tr><td>{{ key|e }}</td><td>{{ value|e }}</td></tr>{% endfor %}
+        <tr><td>Executed</td><td>{{ executed }} of {{ s.total }} (skipped excluded from pass rate)</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h2>Slowest tests</h2>
+      {% if slowest_tests %}
+      <table class="kv">
+        {% for t in slowest_tests %}<tr><td title="{{ t.name|e }}">{{ t.name|truncate(48, True)|e }}</td><td>{{ '%.3f'|format(t.duration) }}s</td></tr>{% endfor %}
+      </table>
+      {% else %}<p class="meta">No timing data recorded.</p>{% endif %}
+    </div>
+  </section>
 
-            table {
-                border-collapse: collapse;
-                width: 100%;
-            }
+  <div class="toolbar" role="search">
+    <input id="search" type="search" placeholder="Search names, descriptions, tags and errors…" aria-label="Search tests">
+    <button class="chip active" data-filter="all" type="button">All<span class="count">{{ s.total }}</span></button>
+    <button class="chip" data-filter="problems" type="button">Problems<span class="count">{{ s.failed + s.error }}</span></button>
+    <button class="chip" data-filter="passed" type="button">Passed<span class="count">{{ s.passed }}</span></button>
+    <button class="chip" data-filter="failed" type="button">Failed<span class="count">{{ s.failed }}</span></button>
+    <button class="chip" data-filter="error" type="button">Error<span class="count">{{ s.error }}</span></button>
+    <button class="chip" data-filter="skipped" type="button">Skipped<span class="count">{{ s.skipped }}</span></button>
+    <button id="expand" type="button">Expand all</button>
+    <button id="collapse" type="button">Collapse all</button>
+  </div>
 
-            th, td {
-                border: 1px solid #ddd;
-                padding: 8px;
-            }
-            th {
-                background-color: #f2f2f2;
-            }
-            .passed {color: #007700}
-            .failed {color: #FF0000}
-            .test-description {
-                white-space: pre-wrap;
-                overflow: hidden;
-            }
-
-            .filter-wrapper {
-                padding: 10px;
-            }
-            .filter--active {
-                background-color: #D6D6D6;
-            }
-            .filter-wrapper .material-icons {
-                pointer-events: none;
-            }
-
-            .search-wrapper {
-                /*display: inline-block;*/
-            }
-            .search-wrapper > input {
-                border: 0;
-                /*margin: 0;*/
-            }
-            .search-wrapper > input:focus {
-                border: 0;
-            }
-            .search-wrapper > .material-icons {
-                position: absolute;
-                top: 10px;
-                right: 10px;
-            }
-        </style>
-
-        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    </head>
-    <body>
-        <div class="container">
-            <div class="row">
-                <div class="col s12">
-                    <center><h1>{{ test_report_title }}</h1></center>
-                </div>
-            </div>
-             <div class="row">
-                <div class="col s12">
-                    <center><h4>Overall Test Summary</h4></center>
-                    <div class="row">
-                        <table>
-                            <tr>
-                                <th> Total Scenarios </th>
-                                <th class="test-description">Pass</th>
-                                <th>Fail</th>
-                                <th class="test-description">Pass Percentage</th>
-                            </tr>
-                            <tr>
-                                <td>
-                                    {{ test_summary.total }}
-                                </td>
-                                <td>
-                                   <strong>  {{ test_summary.passed }}  </strong>
-                                </td>
-                                <td>
-                                    <strong>
-                                        {% if test_summary.failed %}
-                                            <p> {{ test_summary.failed }}</p>
-                                        {% else %}
-                                            <p>
-                                                <em>-</em>
-                                            </p>
-                                        {% endif %}
-                                    </strong>
-                                </td>
-                                <td>
-                                    <p>{{ test_summary.percentage }}</p>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <br>
-            <div class="row">
-                <div class="col s12">
-                    <center><h4>Test Results</h4></center>
-                    <div class="search-wrapper card">
-                        <input id="page-search" />
-                        <i class="material-icons">search</i>
-                    </div>
-                    <div class="filter-wrapper">
-                        <span>Filter:</span>
-                        <a id="filter-all" data-filter-result="all" class="waves-effect waves-light btn">All</a>
-                        <a id="filter-pass" data-filter-result="passed" class="waves-effect waves-light btn-flat"><i class="material-icons left">done</i>Passed</a>
-                        <a id="filter-fail" data-filter-result="failed" class="waves-effect waves-light btn-flat"><i class="material-icons left">error</i>Failed</a>
-                        <a id="filter-error" data-filter-result="error" class="waves-effect waves-light btn-flat"><i class="material-icons left">error</i>Error</a>
-                        <a id="filter-skip" data-filter-result="skipped" class="waves-effect waves-light btn-flat"><i class="material-icons left">warning</i>Skipped</a>
-                    </div>
-                    <ul class="collapsible" data-collapsible="accordian">
-                        {% for test_result in test_results %}
-                            <li data-filter-result="{{ test_result.result }}" data-search-key="{{ test_result.name }}">
-                                <div class="collapsible-header test-case--{{ test_result.result }}">
-                                    <i class="material-icons">
-                                        {% if test_result.result == 'passed' %}
-                                            done
-                                        {% elif test_result.result in ['failed', 'error'] %}
-                                            error
-                                        {% elif test_result.result == 'skipped' %}
-                                            warning
-                                        {% endif %}
-                                    </i>
-                                    {{ test_result.name }}
-                                </div>
-                                <div class="collapsible-body">
-                                    <strong>Description</strong>
-                                    {% if test_result.description %}
-                                        <p>{{ test_result.description.replace('\n', '<br/>') }}</p>
-                                    {% else %}
-                                        <p><em>This test has no docstring...</em></p>
-                                    {% endif %}
-
-                                    <strong>Result: {{ test_result.result }}</strong>
-                                    <br/>
-
-                                    <strong>Traceback</strong>
-                                    <code><pre>{{ test_result.traceback }}</pre></code>
-                                </div>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
+  <div class="tests" id="tests">
+    {% for r in test_results %}
+    {%- set md = r.metadata or {} %}
+    <details class="test {{ r.result }}" data-result="{{ r.result }}"{% if r.result in ['failed', 'error'] and loop.index <= 3 %} open{% endif %}>
+      <summary>
+        <span class="badge b-{{ r.result }}">{{ r.result }}</span>
+        <span class="tname">{{ r.name|e }}{% for tag in md.get('tags') or [] %}<span class="tag">{{ tag|e }}</span>{% endfor %}</span>
+        {% if md.get('duration') is number %}<span class="dur">{{ '%.3f'|format(md.duration) }}s</span>{% endif %}
+      </summary>
+      <div class="body">
+        {% if md.get('location') %}<p class="meta">{{ md.location|e }}{% if md.get('project') %} · {{ md.project|e }}{% endif %}{% if md.get('retries') %} · retries: {{ md.retries }}{% endif %}{% if md.get('flaky') %} · flaky{% endif %}</p>{% endif %}
+        <h3>Description</h3>
+        {% if r.description %}<p class="desc">{{ r.description|e }}</p>{% else %}<p class="meta"><em>No description (add a docstring to the test).</em></p>{% endif %}
+        {% if r.traceback %}
+        <h3>{% if r.result in ['failed', 'error'] %}Error{% else %}Details{% endif %}</h3>
+        <pre class="tb"><button class="copy" type="button">Copy</button><code>{{ r.traceback|e }}</code></pre>
+        {% endif %}
+        {% set attachments = md.get('attachments') or [] %}
+        {% if attachments %}
+        <h3>Attachments</h3>
+        <div class="attachments">
+          {% for a in attachments %}
+            {% if a.content_type and a.content_type.startswith('image/') and a.data %}
+              <figure><img loading="lazy" alt="{{ a.name|e }}" src="data:{{ a.content_type|e }};base64,{{ a.data }}"><figcaption>{{ a.name|e }}</figcaption></figure>
+            {% elif a.text %}
+              <figure style="flex:1 1 100%"><figcaption>{{ a.name|e }}</figcaption><pre class="tb"><code>{{ a.text|e }}</code></pre></figure>
+            {% elif a.path %}
+              <p><a href="{{ a.path|e }}" target="_blank" rel="noopener">{{ a.name|e }}</a> <span class="meta">({{ a.content_type|e }})</span></p>
+            {% endif %}
+          {% endfor %}
         </div>
+        {% endif %}
+      </div>
+    </details>
+    {% endfor %}
+  </div>
+  <p class="empty-state" id="empty">No tests match the current filter.</p>
 
-        <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.8/js/materialize.min.js"></script>
-        <script type="text/javascript">
-            // Map test cases to their search terms
-            var AUTOCOMPLETE_TERMS_MAP = {{ autocomplete_terms }};
-            var AUTOCOMPLETE_TERMS_ARRAY = Object.keys(AUTOCOMPLETE_TERMS_MAP);
+  <footer>Generated by <a href="https://pypi.org/project/pyrept/">pyrept</a></footer>
+</div>
+<div class="lightbox" id="lightbox" role="dialog" aria-label="Screenshot"><img alt=""></div>
 
-            $(function() {
-                $('.filter-wrapper > a').click(function(ev) {
-                    ev.preventDefault();
-                    $('.filter-wrapper > a').removeClass('btn').addClass('btn-flat');
-                    $('#' + ev.target.id).removeClass('btn-flat').addClass('btn');
+<script>
+(function () {
+  var root = document.documentElement;
+  try { var saved = localStorage.getItem('pyrept-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
+  document.getElementById('theme').addEventListener('click', function () {
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme') === 'dark'
+      : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var next = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('pyrept-theme', next); } catch (e) {}
+  });
 
-                    var filterChoice = $(ev.target).attr('data-filter-result');
-                    if (filterChoice === 'all') {
-                        $('ul.collapsible > li').show();
-                    } else {
-                        $('ul.collapsible > li').hide();
-                        $('ul.collapsible > li[data-filter-result="' + filterChoice + '"]').show();
-                    }
-                });
+  var tests = Array.prototype.slice.call(document.querySelectorAll('details.test'));
+  var haystack = tests.map(function (el) { return el.textContent.toLowerCase(); });
+  var search = document.getElementById('search');
+  var empty = document.getElementById('empty');
+  var filter = 'all';
 
-                var materialize_autocomplete_obj = {};
-                Object.keys(AUTOCOMPLETE_TERMS_MAP).forEach(function(item) {
-                    materialize_autocomplete_obj[item] = null
-                });
-                $('#page-search').autocomplete({
-                    data: materialize_autocomplete_obj
-                });
-                $('#page-search').change(function(ev) {
-                    var searchTerm = $(this).val();
-                    console.log(searchTerm);
-
-                    if (searchTerm.length === 0) {
-                        $('ul.collapsible > li').show();
-                        return;
-                    }
-
-                    if (Object.keys(AUTOCOMPLETE_TERMS_MAP).indexOf(searchTerm) < 0) {
-                        return;
-                    }
-
-                    var matchingTestCases = AUTOCOMPLETE_TERMS_MAP[searchTerm];
-                    console.log(matchingTestCases);
-
-                    $('ul.collapsible > li').each(function(_, el) {
-                        if (matchingTestCases.indexOf($(el).attr('data-search-key')) >= 0) {
-                            $(el).show();
-                        } else {
-                            $(el).hide();
-                        }
-                    });
-                });
-            });
-        </script>
-    </body>
+  function apply() {
+    var q = search.value.trim().toLowerCase();
+    var shown = 0;
+    tests.forEach(function (el, i) {
+      var r = el.getAttribute('data-result');
+      var okFilter = filter === 'all' || r === filter || (filter === 'problems' && (r === 'failed' || r === 'error'));
+      var ok = okFilter && (!q || haystack[i].indexOf(q) !== -1);
+      el.style.display = ok ? '' : 'none';
+      if (ok) shown++;
+    });
+    empty.style.display = shown ? 'none' : 'block';
+  }
+  search.addEventListener('input', apply);
+  document.querySelectorAll('.chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      document.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('active'); });
+      chip.classList.add('active');
+      filter = chip.getAttribute('data-filter');
+      apply();
+    });
+  });
+  document.getElementById('expand').addEventListener('click', function () {
+    tests.forEach(function (el) { if (el.style.display !== 'none') el.open = true; });
+  });
+  document.getElementById('collapse').addEventListener('click', function () {
+    tests.forEach(function (el) { el.open = false; });
+  });
+  document.querySelectorAll('button.copy').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      var text = btn.parentNode.querySelector('code').textContent;
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () {
+        btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1200);
+      });
+    });
+  });
+  var box = document.getElementById('lightbox');
+  document.querySelectorAll('.attachments img').forEach(function (img) {
+    img.addEventListener('click', function () { box.querySelector('img').src = img.src; box.style.display = 'grid'; });
+  });
+  box.addEventListener('click', function () { box.style.display = 'none'; });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') box.style.display = 'none';
+    if (ev.key === '/' && document.activeElement !== search) { ev.preventDefault(); search.focus(); }
+  });
+  if (location.hash === '#problems') document.querySelector('.chip[data-filter="problems"]').click();
+})();
+</script>
+</body>
 </html>

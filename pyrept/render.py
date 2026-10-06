@@ -1,7 +1,6 @@
 """
     Functions to generate the HTML output
 """
-from jinja2 import Template
 
 
 def load_template(template_file_path):
@@ -14,7 +13,10 @@ def load_template(template_file_path):
     Returns:
         Template: contains jinja2 template
     """
-    return Template(open(template_file_path).read())
+    from jinja2 import Template  # imported lazily so report building works without jinja2
+
+    with open(template_file_path, encoding='utf-8') as fh:
+        return Template(fh.read())
 
 
 def render_template(template, context):

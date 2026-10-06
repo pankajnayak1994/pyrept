@@ -1,0 +1,30 @@
+{
+  "config": {"version": "1.56.0"},
+  "suites": [
+    {"title": "checkout.spec.ts", "file": "checkout.spec.ts", "specs": [], "suites": [
+      {"title": "Checkout", "file": "checkout.spec.ts", "specs": [
+        {"title": "adds item to cart", "file": "checkout.spec.ts", "line": 5, "tags": ["@smoke"], "tests": [
+          {"projectName": "chromium", "status": "expected",
+           "results": [{"status": "passed", "duration": 1532, "attachments": [], "stdout": [{"text": "cart ok\n"}]}]},
+          {"projectName": "firefox", "status": "flaky",
+           "results": [{"status": "failed", "duration": 2100, "error": {"message": "timeout"}, "attachments": []},
+                       {"status": "passed", "duration": 1800, "attachments": []}]}
+        ]},
+        {"title": "pays with card", "file": "checkout.spec.ts", "line": 18, "tests": [
+          {"projectName": "chromium", "status": "unexpected",
+           "results": [{"status": "failed", "duration": 5012,
+             "error": {"message": "Error: expect(locator).toBeVisible() failed", "stack": "Error: expect(locator).toBeVisible() failed\n    at checkout.spec.ts:24:5"},
+             "attachments": [{"name": "screenshot", "contentType": "image/png", "path": "test-results/pays/shot.png"},
+                             {"name": "trace", "contentType": "application/zip", "path": "test-results/pays/trace.zip"}]}]}
+        ]},
+        {"title": "applies coupon", "file": "checkout.spec.ts", "line": 30, "tests": [
+          {"projectName": "chromium", "status": "skipped", "results": [{"status": "skipped", "duration": 0, "attachments": []}]}
+        ]},
+        {"title": "slow network", "file": "checkout.spec.ts", "line": 40, "tests": [
+          {"projectName": "webkit", "status": "unexpected", "results": [{"status": "timedOut", "duration": 30000, "error": {"message": "Test timeout of 30000ms exceeded."}, "attachments": []}]}
+        ]}
+      ]}
+    ]}
+  ],
+  "stats": {"expected": 1, "unexpected": 2, "flaky": 1, "skipped": 1}
+}
