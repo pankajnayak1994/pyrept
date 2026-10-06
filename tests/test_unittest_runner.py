@@ -176,3 +176,61 @@ class PopOptionTests(unittest.TestCase):
         self.assertEqual(_pop_option(['p', '--x'], '--x', 'd'), ('d', ['p', '--x']))
         # Prefix of another option is not consumed.
         self.assertEqual(_pop_option(['p', '--xy=1'], '--x', 'd'), ('d', ['p', '--xy=1']))
+
+
+class UnittestJUnitAndBaselineTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.mod = 'test_jb_%s' % uuid.uuid4().hex[:8]
+
+    def _run_module(self, body, **kwargs):
+        with open(os.path.join(self.tmp, self.mod + '.py'), 'w') as fh:
+            fh.write(textwrap.dedent(body))
+        sys.modules.pop(self.mod, None)  # the second run must import the rewritten module
+        suite = unittest.TestLoader().discover(self.tmp, pattern=self.mod + '.py', top_level_dir=self.tmp)
+        stream = io.StringIO()
+        PyreptTestRunner(stream=stream, html_path=os.path.join(self.tmp, 'r.html'),
+                         json_path=os.path.join(self.tmp, 'r.json'), **kwargs).run(suite)
+        with open(os.path.join(self.tmp, 'r.json'), encoding='utf-8') as fh:
+            return stream.getvalue(), json.load(fh)
+
+    def test_junit_and_same_file_baseline(self):
+        import xml.etree.ElementTree as ET
+        junit = os.path.join(self.tmp, 'junit.xml')
+        baseline = os.path.join(self.tmp, 'r.json')
+        out, data = self._run_module('''
+            import unittest
+            class T(unittest.TestCase):
+                def test_a(self):
+                    pass
+        ''', junit_path=junit, baseline_path=baseline)
+        self.assertIn('pyrept JUnit report: %s' % os.path.realpath(junit), out)
+        self.assertIsNone(data['comparison'])
+        case = ET.parse(junit).getroot().find('testsuite/testcase')
+        self.assertEqual((case.get('classname'), case.get('name')), ('%s.T' % self.mod, 'test_a'))
+
+        out, data = self._run_module('''
+            import unittest
+            class T(unittest.TestCase):
+                def test_a(self):
+                    self.fail("broken")
+        ''', baseline_path=baseline)
+        self.assertIn('pyrept: 1 new failure', out)
+        self.assertEqual(data['comparison']['new_failures'], ['%s.T.test_a' % self.mod])
+
+    def test_main_options(self):
+        with open(os.path.join(self.tmp, self.mod + '.py'), 'w') as fh:
+            fh.write('import unittest\n\nclass T(unittest.TestCase):\n    def test_a(self):\n        pass\n')
+        junit = os.path.join(self.tmp, 'cli-junit.xml')
+        cwd = os.getcwd()
+        os.chdir(self.tmp)
+        try:
+            with self.assertRaises(SystemExit):
+                main(['prog', 'discover', '-p', self.mod + '.py', '-q', '--pyrept-junit', junit,
+                      '--pyrept-baseline=' + os.path.join(self.tmp, 'missing.json'),
+                      '--pyrept-json', os.path.join(self.tmp, 'cli.json'),
+                      '--pyrept-html', os.path.join(self.tmp, 'cli.html')])
+        finally:
+            os.chdir(cwd)
+        self.assertTrue(os.path.exists(junit))

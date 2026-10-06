@@ -293,3 +293,40 @@ class CliEdgeCaseTests(_TmpDirMixin, unittest.TestCase):
         proc = subprocess.run([sys.executable, '-m', 'pyrept', '--help'], capture_output=True, text=True)
         self.assertEqual(proc.returncode, 0)
         self.assertIn('convert', proc.stdout)
+
+
+class CliJUnitAndBaselineTests(_TmpDirMixin, unittest.TestCase):
+    def test_convert_junit_with_junit_output_and_baseline(self):
+        import contextlib
+        import io
+        import xml.etree.ElementTree as ET
+        junit_in = os.path.join(FIXTURES, 'junit', 'surefire.xml')
+        out = io.StringIO()
+        html, jsn, junit_out = (os.path.join(self.tmp, n) for n in ('r.html', 'r.json', 'out.xml'))
+        with contextlib.redirect_stdout(out):
+            code = main(['convert', '--from', 'junit', junit_in, '--html', html, '--json', jsn,
+                         '--junit', junit_out, '--baseline', jsn, '--fail-on-failure'])
+        self.assertEqual(code, 1)
+        self.assertIn('pyrept JUnit report:', out.getvalue())
+        self.assertNotIn('new failure', out.getvalue())  # nothing to compare with yet
+        with open(jsn, encoding='utf-8') as fh:
+            data = json.load(fh)
+        self.assertEqual(data['test_report_title'], 'JUnit Test Report')
+        self.assertEqual(data['environment']['Framework'], 'JUnit')
+        self.assertEqual(data['test_summary']['total'], 5)
+        self.assertEqual(ET.parse(junit_out).getroot().get('failures'), '1')
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            main(['convert', '--from', 'junit', junit_in, '--html', html, '--json', jsn, '--baseline', jsn])
+        self.assertIn('pyrept: 0 new failures, 0 fixed, 2 still failing (vs r.json)', out.getvalue())
+
+    def test_invalid_junit_is_a_clean_error(self):
+        import contextlib
+        import io
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code = main(['convert', '--from', 'junit', self._write('bad.xml', '<testsuite><oops'),
+                         '--json', os.path.join(self.tmp, 'r.json'), '--html', os.path.join(self.tmp, 'r.html')])
+        self.assertEqual(code, 2)
+        self.assertIn('not valid XML', err.getvalue())

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="com.shop.CheckoutTest" time="1,234.5" tests="5" errors="1" skipped="1" failures="1">
+  <properties>
+    <property name="java.version" value="21"/>
+  </properties>
+  <testcase name="paysWithCard" classname="com.shop.CheckoutTest" time="1,200.25">
+    <failure message="expected:&lt;200&gt; but was:&lt;500&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected:&lt;200&gt; but was:&lt;500&gt;
+	at com.shop.CheckoutTest.paysWithCard(CheckoutTest.java:42)</failure>
+    <system-out>[[ATTACHMENT|screens/pay.png]]</system-out>
+  </testcase>
+  <testcase name="loadsCart" classname="com.shop.CheckoutTest" time="0.5">
+    <error message="Connection refused" type="java.net.ConnectException"/>
+  </testcase>
+  <testcase name="appliesCoupon" classname="com.shop.CheckoutTest" time="0">
+    <skipped message="coupon service disabled"/>
+  </testcase>
+  <testcase name="retriesPayment" classname="com.shop.CheckoutTest" time="2.0">
+    <flakyFailure message="timeout" type="java.util.concurrent.TimeoutException"/>
+  </testcase>
+  <testcase name="showsTotal" classname="com.shop.CheckoutTest" time="0.01"/>
+</testsuite>

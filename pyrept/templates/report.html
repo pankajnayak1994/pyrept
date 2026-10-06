@@ -88,6 +88,17 @@ pre.tb { position: relative; background: var(--code-bg); border: 1px solid var(-
 .empty-state { text-align: center; color: var(--muted); padding: 40px; display: none; }
 footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: center; }
 footer a { color: var(--accent); }
+.compare { margin-top: 12px; }
+.compare .head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline; }
+.compare .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 10px 0 4px; }
+.compare .stat { border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; }
+.compare .stat b { display: block; font-size: 22px; font-weight: 650; }
+.compare details { margin-top: 8px; }
+.compare summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.compare ul { margin: 6px 0 0; padding-left: 18px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.delta-up { color: var(--pass); } .delta-down { color: var(--fail); }
+.change { flex: none; font-size: 10px; font-weight: 650; text-transform: uppercase; border-radius: 6px; padding: 1px 6px; border: 1px solid currentColor; }
+.c-new-failure { color: var(--fail); } .c-fixed { color: var(--pass); } .c-still-failing { color: var(--error); } .c-new { color: var(--accent); }
 .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.8); display: none; place-items: center; z-index: 50; padding: 20px; }
 .lightbox img { max-width: 100%; max-height: 100%; }
 </style>
@@ -144,10 +155,39 @@ footer a { color: var(--accent); }
     </div>
   </section>
 
+  {% set cmp = comparison %}
+  {% if cmp %}
+  {%- set base = cmp.baseline or {} %}
+  {%- macro name_list(title, names) -%}
+    {% if names %}<details><summary>{{ title }} ({{ names|length }})</summary><ul>{% for n in names[:200] %}<li>{{ n|e }}</li>{% endfor %}{% if names|length > 200 %}<li>… {{ names|length - 200 }} more</li>{% endif %}</ul></details>{% endif %}
+  {%- endmacro %}
+  <section class="card compare" aria-label="Comparison with baseline">
+    <div class="head">
+      <h2>Compared with previous run</h2>
+      <span class="meta">{{ (base.source or 'baseline')|e }}{% if base.timestamp %} · {{ base.timestamp|e }}{% endif %}{% if base.percentage is number %} · pass rate then {{ base.percentage|e }}%{% endif %}{% if cmp.percentage_delta is number %} · <span class="{{ 'delta-up' if cmp.percentage_delta > 0 else ('delta-down' if cmp.percentage_delta < 0 else '') }}">{{ '%+.2f'|format(cmp.percentage_delta) }} pts</span>{% endif %}</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="label meta">New failures</span><b class="v-fail">{{ cmp.new_failures|length }}</b></div>
+      <div class="stat"><span class="label meta">Fixed</span><b class="v-pass">{{ cmp.fixed|length }}</b></div>
+      <div class="stat"><span class="label meta">Still failing</span><b class="v-error">{{ cmp.still_failing|length }}</b></div>
+      <div class="stat"><span class="label meta">New tests</span><b>{{ cmp.new_tests|length }}</b></div>
+      <div class="stat"><span class="label meta">Removed tests</span><b>{{ cmp.removed_tests|length }}</b></div>
+      <div class="stat"><span class="label meta">Slower</span><b>{{ cmp.slower|length }}</b></div>
+    </div>
+    {{ name_list('New failures', cmp.new_failures) }}
+    {{ name_list('Fixed', cmp.fixed) }}
+    {{ name_list('Still failing', cmp.still_failing) }}
+    {{ name_list('New tests', cmp.new_tests) }}
+    {{ name_list('Removed tests', cmp.removed_tests) }}
+    {% if cmp.slower %}<details><summary>Slower tests ({{ cmp.slower|length }})</summary><ul>{% for t in cmp.slower %}<li>{{ t.name|e }}: {{ '%.3f'|format(t.before) }}s → {{ '%.3f'|format(t.after) }}s (×{{ t.ratio|e }})</li>{% endfor %}</ul></details>{% endif %}
+  </section>
+  {% endif %}
+
   <div class="toolbar" role="search">
     <input id="search" type="search" placeholder="Search names, descriptions, tags and errors…" aria-label="Search tests">
     <button class="chip active" data-filter="all" type="button">All<span class="count">{{ s.total }}</span></button>
     <button class="chip" data-filter="problems" type="button">Problems<span class="count">{{ s.failed + s.error }}</span></button>
+    {% if cmp %}<button class="chip" data-filter="new-failure" type="button">New failures<span class="count">{{ cmp.new_failures|length }}</span></button>{% endif %}
     <button class="chip" data-filter="passed" type="button">Passed<span class="count">{{ s.passed }}</span></button>
     <button class="chip" data-filter="failed" type="button">Failed<span class="count">{{ s.failed }}</span></button>
     <button class="chip" data-filter="error" type="button">Error<span class="count">{{ s.error }}</span></button>
@@ -159,9 +199,11 @@ footer a { color: var(--accent); }
   <div class="tests" id="tests">
     {% for r in test_results %}
     {%- set md = r.metadata or {} %}
-    <details class="test {{ r.result }}" data-result="{{ r.result }}"{% if r.result in ['failed', 'error'] and loop.index <= 3 %} open{% endif %}>
+    {%- set change = (cmp.changes or {}).get(r.name) if cmp else none %}
+    <details class="test {{ r.result }}" data-result="{{ r.result }}"{% if change %} data-change="{{ change|e }}"{% endif %}{% if r.result in ['failed', 'error'] and loop.index <= 3 %} open{% endif %}>
       <summary>
         <span class="badge b-{{ r.result }}">{{ r.result }}</span>
+        {% if change %}<span class="change c-{{ change|e }}">{{ change|replace('-', ' ')|e }}</span>{% endif %}
         <span class="tname">{{ r.name|e }}{% for tag in md.get('tags') or [] %}<span class="tag">{{ tag|e }}</span>{% endfor %}</span>
         {% if md.get('duration') is number %}<span class="dur">{{ '%.3f'|format(md.duration) }}s</span>{% endif %}
       </summary>
@@ -225,7 +267,8 @@ footer a { color: var(--accent); }
     var shown = 0;
     tests.forEach(function (el, i) {
       var r = el.getAttribute('data-result');
-      var okFilter = filter === 'all' || r === filter || (filter === 'problems' && (r === 'failed' || r === 'error'));
+      var okFilter = filter === 'all' || r === filter || (filter === 'problems' && (r === 'failed' || r === 'error'))
+        || (filter === 'new-failure' && el.getAttribute('data-change') === 'new-failure');
       var ok = okFilter && (!q || haystack[i].indexOf(q) !== -1);
       el.style.display = ok ? '' : 'none';
       if (ok) shown++;
@@ -273,7 +316,9 @@ footer a { color: var(--accent); }
     if (ev.key === 'Escape') box.style.display = 'none';
     if (ev.key === '/' && document.activeElement !== search) { ev.preventDefault(); search.focus(); }
   });
-  if (location.hash === '#problems') document.querySelector('.chip[data-filter="problems"]').click();
+  var hashChip = { '#problems': 'problems', '#new-failures': 'new-failure' }[location.hash];
+  var chipEl = hashChip && document.querySelector('.chip[data-filter="' + hashChip + '"]');
+  if (chipEl) chipEl.click();
 })();
 </script>
 </body>

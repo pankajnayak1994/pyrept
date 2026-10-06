@@ -173,6 +173,22 @@ class BehaveFormatterUnitTests(unittest.TestCase):
         userdata.setdefault('pyrept_json', os.path.join(self.tmp, 'r.json'))
         return PyreptFormatter(StreamOpener(stream=io.StringIO()), SimpleNamespace(userdata=userdata))
 
+    def test_junit_and_baseline_userdata(self):
+        import json
+        import os
+        import xml.etree.ElementTree as ET
+        from behave.model_core import Status
+        baseline = os.path.join(self.tmp, 'previous.json')
+        with open(baseline, 'w', encoding='utf-8') as fh:
+            json.dump({'test_results': [{'name': 'F :: a', 'result': 'failed'}]}, fh)
+        junit = os.path.join(self.tmp, 'j.xml')
+        formatter = self._formatter(pyrept_junit=junit, pyrept_baseline=baseline)
+        self._run(formatter, [('F', [self._scenario('a', Status.passed, [self._step(Status.passed)])])])
+        case = ET.parse(junit).getroot().find('testsuite/testcase')
+        self.assertEqual((case.get('classname'), case.get('name')), ('F', 'a'))
+        with open(os.path.join(self.tmp, 'r.json'), encoding='utf-8') as fh:
+            self.assertEqual(json.load(fh)['comparison']['fixed'], ['F :: a'])
+
     def _step(self, status, name='a step', error=None):
         from types import SimpleNamespace
         return SimpleNamespace(keyword='Given ', name=name, status=status, error_message=error)

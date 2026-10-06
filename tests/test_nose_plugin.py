@@ -258,6 +258,23 @@ class OutcomeMappingTests(unittest.TestCase):
         self.assertTrue(data['environment']['Framework'].startswith('nose2'))
         self.assertTrue(os.path.exists(os.path.join(tmp, 'r.html')))
 
+    def test_comparison_without_output_stream_is_logged(self):
+        import json
+        import os
+        import shutil
+        import tempfile
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        baseline = os.path.join(tmp, 'b.json')
+        with open(baseline, 'w', encoding='utf-8') as fh:
+            json.dump({'test_results': []}, fh)
+        self.reporter._config.update(html_report_path=os.path.join(tmp, 'r.html'),
+                                     json_report_path=os.path.join(tmp, 'r.json'), baseline_report_path=baseline)
+        self.reporter.testOutcome(events.TestOutcomeEvent(self.test, None, result.PASS, expected=True))
+        with self.assertLogs('pyrept.html_report', level='INFO') as logs:
+            self.reporter.afterSummaryReport(None)
+        self.assertTrue(any('0 new failures' in line for line in logs.output))
+
     def test_event_metadata_is_not_mutated(self):
         ev = events.TestOutcomeEvent(self.test, None, result.PASS, expected=True)
         ev.metadata['custom'] = 1
@@ -322,3 +339,55 @@ class NoseEndToEndTests(unittest.TestCase):
         self.assertEqual(results['test_xpass'], 'failed')
         self.assertEqual(results['test_subtests (i=1)'], 'failed')
         self.assertTrue(os.path.exists(os.path.join(tmp, 'out', 'r.html')))
+
+
+class NoseCommandLineTests(unittest.TestCase):
+    """Report options on the nose2 command line (nose2 used to reject them as unknown)."""
+
+    def setUp(self):
+        import os
+        import shutil
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        with open(os.path.join(self.tmp, 'test_cli_sample.py'), 'w') as fh:
+            fh.write('import unittest\n\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n')
+        with open(os.path.join(self.tmp, 'nose2.cfg'), 'w') as fh:
+            fh.write('[unittest]\nplugins = pyrept.html_report\n')
+
+    def _nose2(self, *args):
+        import subprocess
+        return subprocess.run([sys.executable, '-m', 'nose2', '--html-report'] + list(args), cwd=self.tmp,
+                              capture_output=True, text=True, check=False)
+
+    def test_path_options_junit_and_baseline(self):
+        import json
+        import os
+        import xml.etree.ElementTree as ET
+        args = ['--html-report-path=out/r.html', '--json-report-path=out/r.json', '--junit-report-path=out/j.xml']
+        first = self._nose2(*args)
+        self.assertEqual(first.returncode, 0, first.stderr)
+        for name in ('r.html', 'r.json', 'j.xml'):
+            self.assertTrue(os.path.exists(os.path.join(self.tmp, 'out', name)), name)
+        self.assertEqual(ET.parse(os.path.join(self.tmp, 'out', 'j.xml')).getroot().get('tests'), '1')
+
+        second = self._nose2('--html-report-path=out/r.html', '--json-report-path=out/r.json',
+                             '--baseline-report-path=out/r.json')
+        self.assertEqual(second.returncode, 0, second.stderr)
+        self.assertIn('pyrept: 0 new failures, 0 fixed, 0 still failing (vs r.json)', second.stderr + second.stdout)
+        with open(os.path.join(self.tmp, 'out', 'r.json'), encoding='utf-8') as fh:
+            self.assertEqual(json.load(fh)['comparison']['new_failures'], [])
+
+    def test_config_file_keys(self):
+        import os
+        with open(os.path.join(self.tmp, 'nose2.cfg'), 'a') as fh:
+            fh.write('[html-report]\njunit-report-path = cfg/j.xml\nbaseline-report-path = cfg/none.json\n')
+        result = self._nose2()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, 'cfg', 'j.xml')))
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, 'report.html')))
+
+    def test_wrong_extension_is_rejected(self):
+        result = self._nose2('--junit-report-path=out/j.txt')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('must end with .xml', result.stderr)

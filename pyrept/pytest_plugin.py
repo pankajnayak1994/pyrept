@@ -6,6 +6,7 @@ stays inactive until you opt in, either on the command line::
 
     pytest --pyrept
     pytest --pyrept-html=reports/report.html --pyrept-json=reports/report.json
+    pytest --pyrept --pyrept-junit=junit.xml --pyrept-baseline=report.json
 
 or in ``pytest.ini`` / ``pyproject.toml``::
 
@@ -21,6 +22,7 @@ import time
 
 import pytest
 
+from .compare import load_baseline, summary_line
 from .report import (
     DEFAULT_HTML_REPORT_PATH,
     DEFAULT_JSON_REPORT_PATH,
@@ -44,12 +46,19 @@ def pytest_addoption(parser):
                     help='Path of the HTML report (implies --pyrept). Default: %s' % DEFAULT_HTML_REPORT_PATH)
     group.addoption('--pyrept-json', action='store', default=None, metavar='PATH',
                     help='Path of the JSON report (implies --pyrept). Default: %s' % DEFAULT_JSON_REPORT_PATH)
+    group.addoption('--pyrept-junit', action='store', default=None, metavar='PATH',
+                    help='Also write a JUnit XML report to PATH (implies --pyrept).')
+    group.addoption('--pyrept-baseline', action='store', default=None, metavar='PATH',
+                    help='Compare with an earlier pyrept JSON report (it may be the file this run overwrites). '
+                         'A missing file is ignored.')
     group.addoption('--pyrept-title', action='store', default=None, help='Report title.')
     group.addoption('--pyrept-no-screenshots', action='store_true', default=False,
                     help='Do not capture Playwright/Selenium screenshots for failing tests.')
     parser.addini('pyrept', type='bool', default=False, help='Always generate pyrept reports.')
     parser.addini('pyrept_html', default='', help='Path of the pyrept HTML report.')
     parser.addini('pyrept_json', default='', help='Path of the pyrept JSON report.')
+    parser.addini('pyrept_junit', default='', help='Path of an extra JUnit XML report.')
+    parser.addini('pyrept_baseline', default='', help='Earlier pyrept JSON report to compare with.')
 
 
 def _ini_dir(config):
@@ -68,16 +77,21 @@ def _resolve(config, cli_value, ini_name, default):
     elif config.getini(ini_name):
         base = _ini_dir(config)
         path = config.getini(ini_name)
-    else:
+    elif default:
         base = str(config.invocation_params.dir)
         path = default
+    else:
+        return None
     return os.path.realpath(os.path.join(base, os.path.expanduser(path)))
 
 
 def pytest_configure(config):
     html_opt = config.getoption('pyrept_html')
     json_opt = config.getoption('pyrept_json')
-    enabled = config.getoption('pyrept') or html_opt or json_opt or config.getini('pyrept')
+    junit_opt = config.getoption('pyrept_junit')
+    baseline_opt = config.getoption('pyrept_baseline')
+    enabled = (config.getoption('pyrept') or html_opt or json_opt or junit_opt or baseline_opt
+               or config.getini('pyrept'))
     if not enabled:
         return
     # Reports are built where the test runs (also inside xdist workers, whose
@@ -91,6 +105,8 @@ def pytest_configure(config):
         html_path=_resolve(config, html_opt, 'pyrept_html', DEFAULT_HTML_REPORT_PATH),
         json_path=_resolve(config, json_opt, 'pyrept_json', DEFAULT_JSON_REPORT_PATH),
         title=config.getoption('pyrept_title') or 'Test Report',
+        junit_path=_resolve(config, junit_opt, 'pyrept_junit', None),
+        baseline_path=_resolve(config, baseline_opt, 'pyrept_baseline', None),
     )
     config.pluginmanager.register(reporter, _PLUGIN_NAME)
 
@@ -176,9 +192,12 @@ class PyreptAnnotator:
 
 
 class PyreptReporter:
-    def __init__(self, html_path, json_path, title='Test Report'):
+    def __init__(self, html_path, json_path, title='Test Report', junit_path=None, baseline_path=None):
         self.html_path = html_path
         self.json_path = json_path
+        self.junit_path = junit_path
+        self.baseline_path = baseline_path
+        self.comparison = None
         self.title = title
         self.summary_stats = new_summary_stats()
         self.test_results = []
@@ -283,9 +302,15 @@ class PyreptReporter:
                                 environment={'Framework': 'pytest %s' % pytest.__version__,
                                              'Python': platform.python_version(),
                                              'Platform': platform.platform()},
-                                duration=time.time() - self._start)
-        write_reports(context, html_path=self.html_path, json_path=self.json_path)
+                                duration=time.time() - self._start,
+                                baseline=load_baseline(self.baseline_path))
+        self.comparison = context['comparison']
+        write_reports(context, html_path=self.html_path, json_path=self.json_path, junit_path=self.junit_path)
 
     def pytest_terminal_summary(self, terminalreporter):
         terminalreporter.write_sep('-', 'pyrept HTML report: %s' % self.html_path)
         terminalreporter.write_sep('-', 'pyrept JSON report: %s' % self.json_path)
+        if self.junit_path:
+            terminalreporter.write_sep('-', 'pyrept JUnit report: %s' % self.junit_path)
+        if self.comparison:
+            terminalreporter.write_sep('-', 'pyrept: %s' % summary_line(self.comparison))

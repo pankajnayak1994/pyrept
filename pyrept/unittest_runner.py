@@ -6,6 +6,7 @@ Command line (same arguments as ``python -m unittest``)::
     python -m pyrept.unittest_runner discover -s tests
     python -m pyrept.unittest_runner tests.test_module --pyrept-html=reports/report.html
     python -m pyrept.unittest_runner discover -s tests --pyrept-title "Nightly run"
+    python -m pyrept.unittest_runner discover -s tests --pyrept-junit=junit.xml --pyrept-baseline=report.json
 
 In code::
 
@@ -20,6 +21,7 @@ import sys
 import time
 import unittest
 
+from .compare import summary_line
 from .report import DEFAULT_HTML_REPORT_PATH, DEFAULT_JSON_REPORT_PATH, ReportCollector
 
 
@@ -113,10 +115,12 @@ class PyreptTestRunner(unittest.TextTestRunner):
     resultclass = PyreptTestResult
 
     def __init__(self, *args, html_path=DEFAULT_HTML_REPORT_PATH, json_path=DEFAULT_JSON_REPORT_PATH,
-                 title='Test Report', **kwargs):
+                 title='Test Report', junit_path=None, baseline_path=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.html_path = os.path.realpath(html_path)
         self.json_path = os.path.realpath(json_path)
+        self.junit_path = os.path.realpath(junit_path) if junit_path else None
+        self.baseline_path = os.path.realpath(baseline_path) if baseline_path else None
         self.collector = ReportCollector(title=title, environment={'Framework': 'unittest'})
 
     def _makeResult(self):
@@ -127,9 +131,14 @@ class PyreptTestRunner(unittest.TextTestRunner):
 
     def run(self, test):
         result = super().run(test)
-        self.collector.write(html_path=self.html_path, json_path=self.json_path)
+        context = self.collector.write(html_path=self.html_path, json_path=self.json_path,
+                                       junit_path=self.junit_path, baseline_path=self.baseline_path)
         self.stream.writeln('pyrept HTML report: %s' % self.html_path)
         self.stream.writeln('pyrept JSON report: %s' % self.json_path)
+        if self.junit_path:
+            self.stream.writeln('pyrept JUnit report: %s' % self.junit_path)
+        if context['comparison']:
+            self.stream.writeln('pyrept: %s' % summary_line(context['comparison']))
         self.stream.flush()
         return result
 
@@ -157,6 +166,8 @@ def main(argv=None):
     html_path, argv = _pop_option(argv, '--pyrept-html', DEFAULT_HTML_REPORT_PATH)
     json_path, argv = _pop_option(argv, '--pyrept-json', DEFAULT_JSON_REPORT_PATH)
     title, argv = _pop_option(argv, '--pyrept-title', 'Test Report')
+    junit_path, argv = _pop_option(argv, '--pyrept-junit', None)
+    baseline_path, argv = _pop_option(argv, '--pyrept-baseline', None)
 
     class _ConfiguredRunner(PyreptTestRunner):
         # unittest.main instantiates the runner class itself, passing
@@ -165,6 +176,8 @@ def main(argv=None):
             kwargs.setdefault('html_path', html_path)
             kwargs.setdefault('json_path', json_path)
             kwargs.setdefault('title', title)
+            kwargs.setdefault('junit_path', junit_path)
+            kwargs.setdefault('baseline_path', baseline_path)
             super().__init__(*args, **kwargs)
 
     argv[0] = 'python -m pyrept.unittest_runner'

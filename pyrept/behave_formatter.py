@@ -19,6 +19,8 @@ or register it once in ``behave.ini``::
     [behave.userdata]
     pyrept_html = reports/report.html
     pyrept_json = reports/report.json
+    pyrept_junit = reports/junit.xml          # optional: JUnit XML as well
+    pyrept_baseline = reports/report.json     # optional: compare with the previous run
 
 and run ``behave -f pyrept -o /dev/null -f pretty``. behave pairs each ``-o`` with the
 ``-f`` before it, so keep ``-f pyrept -o /dev/null`` first or the console output is lost.
@@ -67,6 +69,9 @@ class PyreptFormatter(Formatter):
         userdata = getattr(config, 'userdata', {}) or {}
         self.html_path = os.path.realpath(userdata.get('pyrept_html', DEFAULT_HTML_REPORT_PATH))
         self.json_path = os.path.realpath(userdata.get('pyrept_json', DEFAULT_JSON_REPORT_PATH))
+        junit, baseline = userdata.get('pyrept_junit'), userdata.get('pyrept_baseline')
+        self.junit_path = os.path.realpath(junit) if junit else None
+        self.baseline_path = os.path.realpath(baseline) if baseline else None
         import behave
         self.collector = ReportCollector(title=userdata.get('pyrept_title', 'BDD Test Report'),
                                          environment={'Framework': 'behave %s' % getattr(behave, '__version__', '')})
@@ -97,7 +102,8 @@ class PyreptFormatter(Formatter):
 
     def close(self):
         self._flush()
-        self.collector.write(html_path=self.html_path, json_path=self.json_path)
+        self.collector.write(html_path=self.html_path, json_path=self.json_path,
+                             junit_path=self.junit_path, baseline_path=self.baseline_path)
         super().close()
 
     # ------------------------------------------------------------------------

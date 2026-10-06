@@ -442,3 +442,47 @@ def test_subtests_get_distinct_names(pytester):
     failed = [n for n in names if '(i=1)' in n]
     assert failed, names
     assert not any('(i=0)' in n or '(i=2)' in n for n in names)  # passing subtests are not listed
+
+
+def test_junit_and_baseline_options(pytester):
+    import xml.etree.ElementTree as ET
+    pytester.makepyfile(test_a='def test_one():\n    pass\n\ndef test_two():\n    pass\n')
+    first = _run(pytester, '--pyrept-baseline=report.json', '--pyrept-junit=out/junit.xml')
+    first.stdout.fnmatch_lines(['*pyrept JUnit report:*junit.xml*'])
+    assert 'new failure' not in first.stdout.str()  # no baseline on the first run
+    assert _load(pytester.path / 'report.json')['comparison'] is None
+    suite = ET.parse(str(pytester.path / 'out' / 'junit.xml')).getroot().find('testsuite')
+    assert [c.get('name') for c in suite.findall('testcase')] == ['test_one', 'test_two']
+
+    pytester.makepyfile(test_a='def test_one():\n    assert False\n\ndef test_three():\n    pass\n')
+    second = _run(pytester, '--pyrept-baseline=report.json')
+    second.stdout.fnmatch_lines(
+        ['*pyrept: 1 new failure, 0 fixed, 0 still failing, 1 new, 1 removed (vs report.json)*'])
+    comparison = _load(pytester.path / 'report.json')['comparison']
+    assert comparison['new_failures'] == ['test_a.py::test_one']
+    assert comparison['removed_tests'] == ['test_a.py::test_two']
+    assert 'data-change="new-failure"' in (pytester.path / 'report.html').read_text(encoding='utf-8')
+
+
+def test_junit_and_baseline_from_ini(pytester):
+    pytester.makeini('''
+        [pytest]
+        pyrept = true
+        pyrept_junit = reports/junit.xml
+        pyrept_baseline = reports/previous.json
+    ''')
+    (pytester.path / 'reports').mkdir()
+    (pytester.path / 'reports' / 'previous.json').write_text(
+        '{"test_results": [{"name": "test_b.py::test_x", "result": "failed"}]}', encoding='utf-8')
+    pytester.makepyfile(test_b='def test_x():\n    pass\n')
+    _run(pytester)
+    assert (pytester.path / 'reports' / 'junit.xml').exists()
+    assert _load(pytester.path / 'report.json')['comparison']['fixed'] == ['test_b.py::test_x']
+
+
+def test_unreadable_baseline_does_not_fail_the_run(pytester):
+    (pytester.path / 'broken.json').write_text('{oops', encoding='utf-8')
+    pytester.makepyfile(test_c='def test_ok():\n    pass\n')
+    result = _run(pytester, '--pyrept-baseline=broken.json')
+    assert result.ret == 0
+    assert _load(pytester.path / 'report.json')['comparison'] is None
