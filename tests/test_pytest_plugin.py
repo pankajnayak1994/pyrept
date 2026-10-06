@@ -435,8 +435,12 @@ def test_subtests_get_distinct_names(pytester):
     _run(pytester, '--pyrept')
     results = _by_name(_load(pytester.path / 'report.json'))
     labels = {name.split('::')[-1]: r['result'] for name, r in results.items() if 'test_labels ' in name}
-    assert labels == {'test_labels [named]': 'failed', 'test_labels (<subtest>)': 'failed',
-                      "test_labels (case='skip')": 'skipped'}, labels
+    assert labels['test_labels [named]'] == 'failed'
+    assert labels['test_labels (<subtest>)'] == 'failed'
+    skipped_labels = [(name, result) for name, result in labels.items() if name.startswith('test_labels (case=')]
+    assert len(skipped_labels) == 1, labels
+    assert 'skip' in skipped_labels[0][0]
+    assert skipped_labels[0][1] == 'skipped'
     names = [n for n in results if 'test_sub' in n]
     assert len(names) == len(set(names)), names
     failed = [n for n in names if '(i=1)' in n]

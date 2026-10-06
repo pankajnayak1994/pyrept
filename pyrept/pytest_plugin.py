@@ -157,7 +157,7 @@ def _subtest_label(report):
     if getattr(context, 'msg', None) is not None:
         parts.append('[%s]' % context.msg)
     if context.kwargs:
-        parts.append('(%s)' % ', '.join('%s=%r' % item for item in context.kwargs.items()))
+        parts.append('(%s)' % ', '.join('%s=%s' % item for item in context.kwargs.items()))
     return ' '.join(parts) or '(<subtest>)'
 
 
