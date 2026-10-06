@@ -2,9 +2,9 @@ coverage
 Jinja2
 MarkupSafe
 nose2
-python-coveralls
-six
 setuptools_scm
 pytest
 pytest-cov
-
+behave
+pytest-xdist
+pytest-rerunfailures

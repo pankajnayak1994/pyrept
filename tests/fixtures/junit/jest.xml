@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="3" failures="1" errors="0" time="1.2">
+  <testsuite name="Cart" errors="0" failures="1" skipped="0" timestamp="2026-10-06T10:00:00" time="1.1" tests="2">
+    <testcase classname="Cart adds item" name="Cart adds item" time="0.3"/>
+    <testcase classname="Cart removes item" name="Cart removes item" time="0.8">
+      <failure>Error: expect(received).toBe(expected)
+
+Expected: 0
+Received: 1
+    at Object.&lt;anonymous&gt; (cart.test.js:12:18)</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="Nested" tests="1">
+    <testsuite name="Inner" tests="1">
+      <testcase name="deep test" time="0.1">
+        <properties><property name="tags" value="smoke, api"/></properties>
+      </testcase>
+    </testsuite>
+  </testsuite>
+</testsuites>

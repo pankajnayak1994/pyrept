@@ -33,6 +33,15 @@ def _steps_outcome(steps):
     return 'skipped'
 
 
+def _seconds(duration):
+    """Cucumber reports nanoseconds (integers); behave's ``-f json`` reports seconds (floats)."""
+    if not isinstance(duration, (int, float)) or isinstance(duration, bool):
+        return 0.0
+    if isinstance(duration, float) and not duration.is_integer():
+        return duration
+    return duration / 1e9
+
+
 def _hook_errors(element):
     for key in ('before', 'after'):
         for hook in element.get(key) or []:
@@ -42,11 +51,15 @@ def _hook_errors(element):
 
 
 def load_cucumber_json(path, collector=None, title='Cucumber Test Report'):
-    with open(path, encoding='utf-8') as fh:
+    with open(path, encoding='utf-8-sig') as fh:
         features = json.load(fh)
+    if features is None:
+        features = []
+    if not isinstance(features, list) or not all(isinstance(f, dict) for f in features):
+        raise ValueError('%s is not a Cucumber JSON report (expected a list of features)' % path)
     collector = collector or ReportCollector(title=title)
 
-    for feature in features or []:
+    for feature in features:
         feature_name = feature.get('name') or feature.get('uri') or 'Feature'
         background_steps = []
         for element in feature.get('elements') or []:
@@ -64,12 +77,12 @@ def load_cucumber_json(path, collector=None, title='Cucumber Test Report'):
             if failing is not None:
                 result = failing.get('result') or {}
                 traceback = '%s%s  [%s]\n\n%s' % (failing.get('keyword', ''), failing.get('name', ''),
-                                                   result.get('status'), result.get('error_message', ''))
+                                                  result.get('status'), result.get('error_message', ''))
             if hook_errors:
                 outcome = 'error' if outcome != 'failed' else outcome
                 traceback = '\n\n'.join(filter(None, [traceback] + hook_errors))
 
-            duration_ns = sum((s.get('result') or {}).get('duration') or 0 for s in all_steps)
+            duration = sum(_seconds((s.get('result') or {}).get('duration')) for s in all_steps)
             tags = [t.get('name') for t in element.get('tags') or [] if t.get('name')]
             description = '\n'.join(
                 ([' '.join(tags)] if tags else [])
@@ -85,15 +98,14 @@ def load_cucumber_json(path, collector=None, title='Cucumber Test Report'):
                         data=emb.get('data')))
 
             collector.add(
-                name='%s :: %s' % (feature_name, element.get('name') or element.get('id')),
+                name='%s :: %s' % (feature_name, element.get('name') or element.get('id') or 'Scenario'),
                 outcome=outcome,
                 description=description,
                 traceback=traceback,
                 metadata={
                     'framework': 'cucumber',
                     'location': '%s:%s' % (feature.get('uri', ''), element.get('line', '')),
-                    # Cucumber reports durations in nanoseconds
-                    'duration': round(duration_ns / 1e9, 4),
+                    'duration': round(duration, 4),
                     'tags': tags,
                 },
                 attachments=attachments or None,

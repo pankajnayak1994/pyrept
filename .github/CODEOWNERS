@@ -1,0 +1,5 @@
+# Code owners are requested for review automatically on every pull request.
+# Owners need write access to the repository, otherwise GitHub ignores them.
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+*       @pankajnayak1994 @satroutr

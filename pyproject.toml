@@ -1,0 +1,104 @@
+[build-system]
+requires = ["setuptools>=61", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyrept"
+dynamic = ["version"]
+description = "Searchable HTML, JSON and JUnit XML test reports for pytest, unittest, nose2, behave, Playwright, Selenium and CI pipelines."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Pankaj Kumar Nayak", email = "nayakpankaj2015@gmail.com"},
+]
+dependencies = [
+    "jinja2",
+    "nose2",
+]
+keywords = [
+    "pytest",
+    "unittest",
+    "nose2",
+    "behave",
+    "cucumber",
+    "bdd",
+    "playwright",
+    "selenium",
+    "testing",
+    "test-report",
+    "test-reports",
+    "test-results",
+    "test-automation",
+    "qa-automation",
+    "reporting",
+    "html-report",
+    "json-report",
+    "junit",
+    "junit-xml",
+    "xunit",
+    "xml-report",
+    "ci",
+    "continuous-integration",
+    "github-actions",
+    "gitlab-ci",
+    "jenkins",
+    "azure-devops",
+    "dashboard",
+    "quality-gates",
+    "regression-testing",
+    "baseline-comparison",
+    "flaky-tests",
+    "screenshots",
+    "cucumber-json",
+    "playwright-report",
+    "test-report-converter",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+]
+
+[project.optional-dependencies]
+behave = ["behave>=1.2.6"]
+playwright = ["pytest-playwright"]
+
+[project.urls]
+Homepage = "https://github.com/pankajnayak1994/pyrept"
+Source = "https://github.com/pankajnayak1994/pyrept"
+Issues = "https://github.com/pankajnayak1994/pyrept/issues"
+Changelog = "https://github.com/pankajnayak1994/pyrept/blob/master/CHANGELOG.md"
+
+[project.scripts]
+pyrept = "pyrept.cli:main"
+
+[project.entry-points.pytest11]
+pyrept = "pyrept.pytest_plugin"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+exclude = ["tests", "tests.*", "build", "build.*"]
+
+[tool.setuptools.package-data]
+pyrept = ["templates/report.html"]
+
+[tool.setuptools_scm]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -19,8 +19,13 @@ or register it once in ``behave.ini``::
     [behave.userdata]
     pyrept_html = reports/report.html
     pyrept_json = reports/report.json
+    pyrept_junit = reports/junit.xml          # optional: JUnit XML as well
+    pyrept_baseline = reports/report.json     # optional: compare with the previous run
 
-and run ``behave -f pyrept -o /dev/null`` (``-f pretty`` can be added as well).
+and run ``behave -f pyrept -o /dev/null -f pretty``. behave pairs each ``-o`` with the
+``-f`` before it, so keep ``-f pyrept -o /dev/null`` first or the console output is lost.
+
+Screenshots and other files attached with ``context.attach(mime_type, data)`` are embedded.
 """
 import os
 
@@ -64,11 +69,15 @@ class PyreptFormatter(Formatter):
         userdata = getattr(config, 'userdata', {}) or {}
         self.html_path = os.path.realpath(userdata.get('pyrept_html', DEFAULT_HTML_REPORT_PATH))
         self.json_path = os.path.realpath(userdata.get('pyrept_json', DEFAULT_JSON_REPORT_PATH))
+        junit, baseline = userdata.get('pyrept_junit'), userdata.get('pyrept_baseline')
+        self.junit_path = os.path.realpath(junit) if junit else None
+        self.baseline_path = os.path.realpath(baseline) if baseline else None
         import behave
         self.collector = ReportCollector(title=userdata.get('pyrept_title', 'BDD Test Report'),
                                          environment={'Framework': 'behave %s' % getattr(behave, '__version__', '')})
         self._feature = None
         self._scenarios = []
+        self._attachments = {}  # id(scenario) -> attachments from context.attach()
 
     # behave calls these as it runs ------------------------------------------
     def feature(self, feature):
@@ -78,12 +87,23 @@ class PyreptFormatter(Formatter):
     def scenario(self, scenario):
         self._scenarios.append(scenario)
 
+    def embedding(self, mime_type, data):
+        """Called by behave for ``context.attach(mime_type, data)``."""
+        if not self._scenarios:
+            return  # attached outside a scenario (before_feature/before_all hooks)
+        attachments = self._attachments.setdefault(id(self._scenarios[-1]), [])
+        attachments.append(make_attachment(
+            name='Attachment %d' % (len(attachments) + 1),
+            content_type=mime_type,
+            data=data.encode('utf-8') if isinstance(data, str) else data))
+
     def eof(self):
         self._flush()
 
     def close(self):
         self._flush()
-        self.collector.write(html_path=self.html_path, json_path=self.json_path)
+        self.collector.write(html_path=self.html_path, json_path=self.json_path,
+                             junit_path=self.junit_path, baseline_path=self.baseline_path)
         super().close()
 
     # ------------------------------------------------------------------------
@@ -92,6 +112,7 @@ class PyreptFormatter(Formatter):
         for scenario in self._scenarios:
             self._record(scenario)
         self._scenarios = []
+        self._attachments = {}
 
     def _record(self, scenario):
         feature_name = self._feature.name if self._feature is not None else ''
@@ -106,16 +127,11 @@ class PyreptFormatter(Formatter):
         tags = ['@' + str(t) for t in getattr(scenario, 'effective_tags', None) or scenario.tags]
         description = '\n'.join(([' '.join(tags)] if tags else []) + [_step_line(s) for s in steps])
 
-        attachments = []
-        for step in steps:
-            for embedding in getattr(step, 'embeddings', None) or []:
-                attachments.append(make_attachment(
-                    name=getattr(embedding, 'name', None) or step.name,
-                    content_type=getattr(embedding, 'mime_type', None),
-                    data=getattr(embedding, 'data', None)))
+        attachments = self._attachments.get(id(scenario), [])
+        scenario_name = (scenario.name or '').strip() or 'Scenario'
 
         self.collector.add(
-            name='%s :: %s' % (feature_name, scenario.name) if feature_name else scenario.name,
+            name='%s :: %s' % (feature_name, scenario_name) if feature_name else scenario_name,
             outcome=map_status(scenario.status),
             description=description,
             traceback=traceback,

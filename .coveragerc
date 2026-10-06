@@ -1,6 +1,7 @@
 [run]
 branch = True
-source = .
-omit = 
-    venv/*
-    setup.py
+source = pyrept
+parallel = True
+# Also measure code run in child processes: the behave and nose2 end-to-end
+# tests and pytest-xdist workers. Needs coverage >= 7.10 (older versions warn and skip it).
+patch = subprocess
