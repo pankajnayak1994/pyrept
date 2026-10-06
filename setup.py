@@ -8,7 +8,7 @@ setup(
     packages=find_packages(exclude=['tests', 'tests.*']),
     use_scm_version=True,
     setup_requires=['setuptools_scm'],
-    description='Searchable HTML and JSON test reports for pytest and nose2.',
+    description='Searchable, self-contained HTML and JSON test reports for pytest, unittest, nose2, behave/Cucumber and Playwright.',
     long_description=long_description,
     long_description_content_type="text/markdown",
     author='Pankaj Kumar Nayak',
@@ -28,8 +28,14 @@ setup(
     python_requires='>=3.8',
     entry_points={
         'pytest11': ['pyrept = pyrept.pytest_plugin'],
+        'console_scripts': ['pyrept = pyrept.cli:main'],
     },
-    keywords=['nose2', 'pytest', 'testing', 'reporting', 'html-report', 'json-report'],
+    extras_require={
+        'behave': ['behave>=1.2.6'],
+        'playwright': ['pytest-playwright'],
+    },
+    keywords=['pytest', 'unittest', 'nose2', 'behave', 'cucumber', 'bdd', 'playwright', 'testing', 'reporting',
+              'html-report', 'json-report'],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',

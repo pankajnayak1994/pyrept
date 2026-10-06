@@ -76,7 +76,7 @@ def test_generates_html_and_json_reports(pytester):
     assert summary['failed'] == 1
     assert summary['error'] == 1
     assert summary['skipped'] == 2  # explicit skip + xfail
-    assert summary['percentage'] == 20.0
+    assert summary['percentage'] == 33.33  # skipped tests are excluded from the pass rate
 
     by_name = {r['name'].split('::')[-1]: r for r in data['test_results']}
     assert by_name['test_pass']['description'].startswith('Checks the happy path')
@@ -91,6 +91,52 @@ def test_custom_paths_from_command_line(pytester):
          '--pyrept-html=out/custom.html', '--pyrept-json=out/custom.json')
     assert (pytester.path / 'out' / 'custom.html').exists()
     assert (pytester.path / 'out' / 'custom.json').exists()
+
+
+def test_failure_screenshot_from_page_fixture(pytester):
+    pytester.makepyfile('''
+        import pytest
+
+        class FakePage:
+            def screenshot(self, full_page=False):
+                return b"\\x89PNG fake"
+
+        @pytest.fixture
+        def page():
+            return FakePage()
+
+        def test_ui_fails(page):
+            assert False, "button missing"
+
+        def test_ui_passes(page):
+            assert True
+    ''')
+    _run(pytester, '--pyrept')
+    data = _load(pytester.path / 'report.json')
+    by_name = {r['name'].split('::')[-1]: r for r in data['test_results']}
+    shots = by_name['test_ui_fails']['metadata']['attachments']
+    assert shots[0]['content_type'] == 'image/png'
+    assert shots[0]['data']
+    assert 'attachments' not in by_name['test_ui_passes']['metadata']
+
+
+def test_no_screenshots_flag(pytester):
+    pytester.makepyfile('''
+        import pytest
+
+        @pytest.fixture
+        def page():
+            class P:
+                def screenshot(self, full_page=False):
+                    return b"png"
+            return P()
+
+        def test_ui_fails(page):
+            assert False
+    ''')
+    _run(pytester, '--pyrept', '--pyrept-no-screenshots')
+    data = _load(pytester.path / 'report.json')
+    assert 'attachments' not in data['test_results'][0]['metadata']
 
 
 def test_paths_from_ini(pytester):

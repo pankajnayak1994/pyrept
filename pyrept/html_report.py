@@ -116,7 +116,9 @@ class HTMLReporter(Plugin):
         After everything is done, generate the report
         """
         logger.info('Generating HTML report...')
-        context = build_context(self.summary_stats, self.test_results)
+        import nose2
+        context = build_context(self.summary_stats, self.test_results,
+                                environment={'Framework': 'nose2 %s' % getattr(nose2, '__version__', '')})
         self.summary_stats['percentage'] = context['test_summary']['percentage']
         write_reports(
             context,

@@ -1,0 +1,32 @@
+[
+  {
+    "uri": "features/login.feature",
+    "name": "Login",
+    "elements": [
+      {"type": "background", "name": "", "steps": [
+        {"keyword": "Given ", "name": "the app is open", "result": {"status": "passed", "duration": 1000000}}
+      ]},
+      {"type": "scenario", "id": "login;valid", "name": "Valid credentials", "line": 6,
+       "tags": [{"name": "@smoke"}],
+       "steps": [
+        {"keyword": "When ", "name": "I log in as \"admin\"", "result": {"status": "passed", "duration": 250000000}},
+        {"keyword": "Then ", "name": "I see the dashboard", "result": {"status": "passed", "duration": 50000000}}
+      ]},
+      {"type": "background", "name": "", "steps": [
+        {"keyword": "Given ", "name": "the app is open", "result": {"status": "passed", "duration": 1000000}}
+      ]},
+      {"type": "scenario", "id": "login;invalid", "name": "Wrong password", "line": 11,
+       "steps": [
+        {"keyword": "When ", "name": "I log in with a wrong password", "result": {"status": "passed", "duration": 120000000}},
+        {"keyword": "Then ", "name": "I see an error <banner>", "result": {"status": "failed", "duration": 30000000,
+          "error_message": "AssertionError: expected banner 'Invalid password' but got ''\n\tat steps.py:42"},
+         "embeddings": [{"mime_type": "image/png", "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="}]}
+      ]},
+      {"type": "scenario", "id": "login;sso", "name": "Single sign-on", "line": 16,
+       "steps": [
+        {"keyword": "When ", "name": "I click SSO", "result": {"status": "undefined"}},
+        {"keyword": "Then ", "name": "I am logged in", "result": {"status": "skipped"}}
+      ]}
+    ]
+  }
+]
