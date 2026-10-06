@@ -1,7 +1,8 @@
 BUMP_TYPE ?= PATCH
 
 coverage:
-	coverage run --source=pyrept -m pytest
+	coverage run -m pytest
+	coverage combine
 	coverage report
 
 uninstall:

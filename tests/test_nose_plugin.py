@@ -125,6 +125,8 @@ class FetchFilePathTests(unittest.TestCase):
         from pyrept.html_report import fetch_file_path
         with self.assertRaises(ValueError):
             fetch_file_path(['--html-report-path=out/r.txt'])
+        with self.assertRaises(ValueError):
+            fetch_file_path(['--json-report-path=out/r.txt'])
 
 
 class ConfigPathTests(unittest.TestCase):
@@ -230,6 +232,31 @@ class OutcomeMappingTests(unittest.TestCase):
         self.reporter.startTest(events.StartTestEvent(self.test, None, time.time() - 0.25))
         self.reporter.testOutcome(events.TestOutcomeEvent(self.test, None, result.PASS, expected=True))
         self.assertGreaterEqual(self._only_result()['metadata']['duration'], 0.25)
+
+    def test_module_import_errors_have_no_description(self):
+        holder = unittest.suite._ErrorHolder('setUpModule (broken_module)')
+        self.reporter.testOutcome(events.TestOutcomeEvent(holder, None, result.ERROR, _exc_info(ImportError('x'))))
+        r = self._only_result()
+        self.assertEqual(r['result'], 'error')
+        self.assertIsNone(r['description'])
+        self.assertIn('ImportError', r['traceback'])
+
+    def test_after_summary_report_writes_both_files(self):
+        import json
+        import os
+        import shutil
+        import tempfile
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        self.reporter._config.update(html_report_path=os.path.join(tmp, 'r.html'),
+                                     json_report_path=os.path.join(tmp, 'r.json'))
+        self.reporter.testOutcome(events.TestOutcomeEvent(self.test, None, result.PASS, expected=True))
+        self.reporter.afterSummaryReport(None)
+        with open(os.path.join(tmp, 'r.json'), encoding='utf-8') as fh:
+            data = json.load(fh)
+        self.assertEqual(data['test_summary']['percentage'], 100.0)
+        self.assertTrue(data['environment']['Framework'].startswith('nose2'))
+        self.assertTrue(os.path.exists(os.path.join(tmp, 'r.html')))
 
     def test_event_metadata_is_not_mutated(self):
         ev = events.TestOutcomeEvent(self.test, None, result.PASS, expected=True)

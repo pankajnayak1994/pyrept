@@ -210,6 +210,21 @@ def test_skip_and_xfail_reasons_and_strict_xpass(pytester):
         @pytest.mark.xfail(strict=True)
         def test_strict_xpass():
             pass
+
+        def test_skip_in_body():
+            pytest.skip("runtime condition")
+
+        @pytest.mark.skip(reason="")
+        def test_skip_no_reason():
+            pass
+
+        @pytest.mark.xfail
+        def test_xfail_no_reason():
+            assert False
+
+        def test_blank_output():
+            print("   ")
+            assert False
     ''')
     _run(pytester, '--pyrept')
     results = {k.split('::')[-1]: v for k, v in _by_name(_load(pytester.path / 'report.json')).items()}
@@ -219,6 +234,11 @@ def test_skip_and_xfail_reasons_and_strict_xpass(pytester):
     assert results['test_xpass']['result'] == 'passed'
     assert results['test_strict_xpass']['result'] == 'failed'
     assert 'XPASS(strict)' in results['test_strict_xpass']['traceback']
+    assert results['test_skip_in_body']['result'] == 'skipped'
+    assert results['test_skip_in_body']['traceback'] == 'Skipped: runtime condition'
+    assert results['test_skip_no_reason']['traceback'] is None
+    assert results['test_xfail_no_reason']['traceback'] == 'Expected failure'
+    assert 'attachments' not in results['test_blank_output']['metadata']  # whitespace-only output is dropped
 
 
 def test_teardown_error_is_recorded_separately(pytester):
@@ -280,6 +300,14 @@ def test_ini_paths_are_relative_to_the_ini_file(pytester, monkeypatch):
     assert not (sub / 'reports').exists()
 
 
+def test_ini_override_without_ini_file_is_relative_to_the_invocation_dir(pytester, monkeypatch):
+    sub = pytester.mkpydir('pkg')
+    (sub / 'test_x.py').write_text('def test_x():\n    pass\n')
+    monkeypatch.chdir(sub)
+    _run(pytester, '-o', 'pyrept=true', '-o', 'pyrept_json=o/out.json')
+    assert (sub / 'o' / 'out.json').exists()
+
+
 def test_cli_paths_are_relative_to_the_invocation_dir(pytester, monkeypatch):
     sub = pytester.mkpydir('pkg')
     (sub / 'test_x.py').write_text('def test_x():\n    pass\n')
@@ -301,6 +329,10 @@ def test_screenshot_failure_does_not_break_the_run(pytester):
             def get_screenshot_as_png(self):
                 return b"selenium"
 
+        class DeadDriver:
+            def get_screenshot_as_png(self):
+                raise RuntimeError("invalid session id")
+
         @pytest.fixture
         def page():
             return ClosedPage()
@@ -314,6 +346,13 @@ def test_screenshot_failure_does_not_break_the_run(pytester):
 
         def test_selenium(driver):
             assert False
+
+        @pytest.fixture
+        def browser():
+            return DeadDriver()
+
+        def test_dead_selenium(browser):
+            assert False
     ''')
     _run(pytester, '--pyrept')
     results = {k.split('::')[-1]: v for k, v in _by_name(_load(pytester.path / 'report.json')).items()}
@@ -321,6 +360,8 @@ def test_screenshot_failure_does_not_break_the_run(pytester):
                for a in results['test_closed_page']['metadata'].get('attachments', []))
     shots = [a for a in results['test_selenium']['metadata']['attachments'] if a['name'] == 'Screenshot on failure']
     assert shots[0]['data'] == 'c2VsZW5pdW0='
+    assert results['test_dead_selenium']['result'] == 'failed'
+    assert 'attachments' not in results['test_dead_selenium']['metadata']
 
 
 @pytest.mark.skipif(not _has_plugin('pytest_rerunfailures'), reason='pytest-rerunfailures not installed')
@@ -382,9 +423,21 @@ def test_subtests_get_distinct_names(pytester):
                 for i in range(3):
                     with self.subTest(i=i):
                         self.assertNotEqual(i, 1)
+
+            def test_labels(self):
+                with self.subTest("named"):
+                    self.fail("message only")
+                with self.subTest():
+                    self.fail("no message, no params")
+                with self.subTest(case="skip"):
+                    self.skipTest("not here")
     ''')
     _run(pytester, '--pyrept')
-    names = [r['name'] for r in _load(pytester.path / 'report.json')['test_results']]
+    results = _by_name(_load(pytester.path / 'report.json'))
+    labels = {name.split('::')[-1]: r['result'] for name, r in results.items() if 'test_labels ' in name}
+    assert labels == {'test_labels [named]': 'failed', 'test_labels (<subtest>)': 'failed',
+                      "test_labels (case='skip')": 'skipped'}, labels
+    names = [n for n in results if 'test_sub' in n]
     assert len(names) == len(set(names)), names
     failed = [n for n in names if '(i=1)' in n]
     assert failed, names

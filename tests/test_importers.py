@@ -121,6 +121,7 @@ class CucumberEdgeCaseTests(_TmpDirMixin, unittest.TestCase):
     def test_empty_and_null_reports(self):
         self.assertEqual(load_cucumber_json(self._write('e.json', [])).test_results, [])
         self.assertEqual(load_cucumber_json(self._write('n.json', 'null')).test_results, [])
+        self.assertEqual(load_cucumber_json(self._write('f.json', [{'name': 'Empty feature'}])).test_results, [])
 
     def test_utf8_bom_is_accepted(self):
         path = self._write('bom.json', [{'name': 'F', 'elements': [_scenario(steps=[_step('passed')])]}],
@@ -207,11 +208,16 @@ class PlaywrightEdgeCaseTests(_TmpDirMixin, unittest.TestCase):
         results = self._load({'suites': [self._spec('t', [{
             'projectName': '', 'status': 'expected',
             'results': [{'status': 'passed', 'duration': 10,
-                         'stdout': [{'text': 'hello '}, {'buffer': 'd29ybGQ='}, 'junk'],
+                         'stdout': [{'text': 'hello '}, {'buffer': 'd29ybGQ='}, 'junk', {}, {'buffer': 'abc'}],
+                         'attachments': [{'name': 'video', 'contentType': 'video/webm', 'path': '/abs/v.webm'},
+                                         {'name': 'note', 'contentType': 'text/plain', 'body': 'aGk='}],
                          'stderr': [{'text': 'warn'}]}]}])]})
         attachments = {a['name']: a for a in results['file.spec.ts › t']['metadata']['attachments']}
         self.assertEqual(attachments['stdout']['text'], 'hello world')
         self.assertEqual(attachments['stderr']['text'], 'warn')
+        self.assertEqual(attachments['video']['path'], '/abs/v.webm')  # absolute paths are kept as is
+        self.assertEqual(attachments['note']['data'], 'aGk=')
+        self.assertNotIn('path', attachments['note'])
 
     def test_status_mapping(self):
         def test(status, result_status, **extra):

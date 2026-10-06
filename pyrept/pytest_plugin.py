@@ -57,7 +57,8 @@ def _ini_dir(config):
     inipath = getattr(config, 'inipath', None)
     if inipath:
         return os.path.dirname(str(inipath))
-    return str(config.rootpath) if hasattr(config, 'rootpath') else str(config.rootdir)
+    # No ini file: the value came from ``-o pyrept_html=...`` on the command line.
+    return str(config.invocation_params.dir)
 
 
 def _resolve(config, cli_value, ini_name, default):
@@ -148,8 +149,11 @@ def _skip_reason(report):
     longrepr = report.longrepr
     if isinstance(longrepr, tuple) and len(longrepr) == 3:
         reason = longrepr[2]
-        return reason[len('Skipped: '):] if reason.startswith('Skipped: ') else reason
-    return str(longrepr) if longrepr else None
+        reason = reason[len('Skipped: '):] if reason.startswith('Skipped: ') else reason
+    else:
+        reason = str(longrepr) if longrepr else ''
+    # pytest uses the bare word "Skipped" when no reason was given
+    return reason if reason and reason != 'Skipped' else None
 
 
 class PyreptAnnotator:
@@ -260,7 +264,11 @@ class PyreptReporter:
             outcome = 'skipped'
         else:
             return
-        traceback = str(report.longrepr) if outcome == 'error' else 'Skipped: %s' % _skip_reason(report)
+        if outcome == 'error':
+            traceback = str(report.longrepr)
+        else:
+            reason = _skip_reason(report)
+            traceback = 'Skipped: %s' % reason if reason else None
         record_outcome(
             self.summary_stats,
             self.test_results,

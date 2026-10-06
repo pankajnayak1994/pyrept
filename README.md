@@ -320,7 +320,7 @@ print(context['test_summary'])   # {'total': 3, 'passed': 1, 'failed': 1, 'error
 git clone https://github.com/pankajnayak1994/pyrept && cd pyrept
 pip install -r requirements.txt -e .
 pytest                       # whole suite (pytest, unittest, nose2, behave, importers)
-coverage run --source=pyrept -m pytest && coverage report
+coverage run -m pytest && coverage combine && coverage report
 ```
 
 Changes are listed in [CHANGELOG.md](https://github.com/pankajnayak1994/pyrept/blob/master/CHANGELOG.md).
