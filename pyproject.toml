@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=77", "setuptools_scm>=8"]
+requires = ["setuptools>=61", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,8 +8,7 @@ dynamic = ["version"]
 description = "Searchable HTML, JSON and JUnit XML test reports for pytest, unittest, nose2, behave, Playwright, Selenium and CI pipelines."
 readme = "README.md"
 requires-python = ">=3.8"
-license = "MIT"
-license-files = ["LICENSE"]
+license = {text = "MIT"}
 authors = [
     {name = "Pankaj Kumar Nayak", email = "nayakpankaj2015@gmail.com"},
 ]
