@@ -109,3 +109,44 @@ class NosePluginTests(unittest.TestCase):
         self.assertEqual(test_result['description'], test_function.__doc__)
         self.assertIsNotNone(test_result['traceback'])
         self.assertIn('assert 1 == 2', test_result['traceback'])
+
+
+class FetchFilePathTests(unittest.TestCase):
+    def test_defaults_are_none_so_config_can_apply(self):
+        from pyrept.html_report import fetch_file_path
+        self.assertEqual(fetch_file_path([]), {'html-report-path': None, 'json-report-path': None})
+
+    def test_cli_paths(self):
+        from pyrept.html_report import fetch_file_path
+        paths = fetch_file_path(['--html-report-path=out/r.html', '--json-report-path=out/r.json'])
+        self.assertEqual(paths, {'html-report-path': 'out/r.html', 'json-report-path': 'out/r.json'})
+
+    def test_invalid_extension(self):
+        from pyrept.html_report import fetch_file_path
+        with self.assertRaises(ValueError):
+            fetch_file_path(['--html-report-path=out/r.txt'])
+
+
+class ConfigPathTests(unittest.TestCase):
+    def _reporter_with_cfg(self, body):
+        import os
+        import tempfile
+        tmp = tempfile.mkdtemp()
+        cfg = os.path.join(tmp, 'nose2.cfg')
+        with open(cfg, 'w') as fh:
+            fh.write(body.format(tmp=tmp))
+        session = Session()
+        session.loadConfigFiles(cfg)
+        return tmp, HTMLReporter(session=session)
+
+    def test_config_file_paths_are_used(self):
+        import os
+        tmp, reporter = self._reporter_with_cfg(
+            '[html-report]\nhtml-report-path = {tmp}/x.html\njson-report-path = {tmp}/x.json\n')
+        self.assertEqual(reporter._config['html_report_path'], os.path.realpath(os.path.join(tmp, 'x.html')))
+        self.assertEqual(reporter._config['json_report_path'], os.path.realpath(os.path.join(tmp, 'x.json')))
+
+    def test_legacy_path_key(self):
+        import os
+        tmp, reporter = self._reporter_with_cfg('[html-report]\npath = {tmp}/legacy.html\n')
+        self.assertEqual(reporter._config['html_report_path'], os.path.realpath(os.path.join(tmp, 'legacy.html')))

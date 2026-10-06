@@ -5,10 +5,10 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='pyrept',
-    packages=find_packages(),
+    packages=find_packages(exclude=['tests', 'tests.*']),
     use_scm_version=True,
     setup_requires=['setuptools_scm'],
-    description='This library generates both HTML and JSON reports for your Nose unit tests, providing a clear and structured overview of test results.',
+    description='Searchable HTML and JSON test reports for pytest and nose2.',
     long_description=long_description,
     long_description_content_type="text/markdown",
     author='Pankaj Kumar Nayak',
@@ -20,9 +20,18 @@ setup(
     },
     url='https://github.com/pankajnayak1994/pyrept',
     download_url='https://github.com/pankajnayak1994/pyrept',
-    keywords=['nose2', 'testing', 'reporting', 'pytest'],
+    project_urls={
+        'Source': 'https://github.com/pankajnayak1994/pyrept',
+        'Issues': 'https://github.com/pankajnayak1994/pyrept/issues',
+        'Changelog': 'https://github.com/pankajnayak1994/pyrept/blob/master/CHANGELOG.md',
+    },
+    python_requires='>=3.8',
+    entry_points={
+        'pytest11': ['pyrept = pyrept.pytest_plugin'],
+    },
+    keywords=['nose2', 'pytest', 'testing', 'reporting', 'html-report', 'json-report'],
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Topic :: Software Development :: Testing',
         'License :: OSI Approved :: MIT License',
@@ -31,5 +40,7 @@ setup(
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
+        'Framework :: Pytest',
     ]
 )

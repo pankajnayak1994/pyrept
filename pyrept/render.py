@@ -14,7 +14,8 @@ def load_template(template_file_path):
     Returns:
         Template: contains jinja2 template
     """
-    return Template(open(template_file_path).read())
+    with open(template_file_path, encoding='utf-8') as fh:
+        return Template(fh.read())
 
 
 def render_template(template, context):

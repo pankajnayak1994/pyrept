@@ -26,6 +26,13 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Run tests before tagging and publishing
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+          python -m pytest
+
       - name: Get latest version tag
         id: get_latest_tag
         run: |
@@ -82,7 +89,7 @@ jobs:
           git tag ${{ steps.bump.outputs.new_tag }}
           git push origin ${{ steps.bump.outputs.new_tag }}
 
-      - name: Update version in setup.py (optional)
+      - name: Install build tools
         run: |
           python -m pip install --upgrade pip
           pip install build twine
