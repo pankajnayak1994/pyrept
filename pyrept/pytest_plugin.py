@@ -32,6 +32,8 @@ from .report import (
 )
 
 _PLUGIN_NAME = 'pyrept-reporter'
+_ANNOTATOR_NAME = 'pyrept-annotator'
+_IGNORED_MARKERS = ('parametrize', 'usefixtures', 'filterwarnings')
 
 
 def pytest_addoption(parser):
@@ -50,28 +52,53 @@ def pytest_addoption(parser):
     parser.addini('pyrept_json', default='', help='Path of the pyrept JSON report.')
 
 
+def _ini_dir(config):
+    # Paths in an ini file are relative to that file, not to wherever pytest was started.
+    inipath = getattr(config, 'inipath', None)
+    if inipath:
+        return os.path.dirname(str(inipath))
+    return str(config.rootpath) if hasattr(config, 'rootpath') else str(config.rootdir)
+
+
+def _resolve(config, cli_value, ini_name, default):
+    if cli_value:
+        base = str(config.invocation_params.dir)
+        path = cli_value
+    elif config.getini(ini_name):
+        base = _ini_dir(config)
+        path = config.getini(ini_name)
+    else:
+        base = str(config.invocation_params.dir)
+        path = default
+    return os.path.realpath(os.path.join(base, os.path.expanduser(path)))
+
+
 def pytest_configure(config):
     html_opt = config.getoption('pyrept_html')
     json_opt = config.getoption('pyrept_json')
     enabled = config.getoption('pyrept') or html_opt or json_opt or config.getini('pyrept')
-    # Do not write reports from xdist worker processes; the controller collects all results.
-    if not enabled or hasattr(config, 'workerinput'):
+    if not enabled:
         return
-    html_path = html_opt or config.getini('pyrept_html') or DEFAULT_HTML_REPORT_PATH
-    json_path = json_opt or config.getini('pyrept_json') or DEFAULT_JSON_REPORT_PATH
+    # Reports are built where the test runs (also inside xdist workers, whose
+    # reports are sent to the controller with these extra attributes).
+    config.pluginmanager.register(
+        PyreptAnnotator(screenshots=not config.getoption('pyrept_no_screenshots')), _ANNOTATOR_NAME)
+    # Do not write reports from xdist worker processes; the controller collects all results.
+    if hasattr(config, 'workerinput'):
+        return
     reporter = PyreptReporter(
-        html_path=os.path.realpath(os.path.join(str(config.invocation_params.dir), html_path)),
-        json_path=os.path.realpath(os.path.join(str(config.invocation_params.dir), json_path)),
+        html_path=_resolve(config, html_opt, 'pyrept_html', DEFAULT_HTML_REPORT_PATH),
+        json_path=_resolve(config, json_opt, 'pyrept_json', DEFAULT_JSON_REPORT_PATH),
         title=config.getoption('pyrept_title') or 'Test Report',
-        screenshots=not config.getoption('pyrept_no_screenshots'),
     )
     config.pluginmanager.register(reporter, _PLUGIN_NAME)
 
 
 def pytest_unconfigure(config):
-    reporter = config.pluginmanager.get_plugin(_PLUGIN_NAME)
-    if reporter is not None:
-        config.pluginmanager.unregister(reporter)
+    for name in (_PLUGIN_NAME, _ANNOTATOR_NAME):
+        plugin = config.pluginmanager.get_plugin(name)
+        if plugin is not None:
+            config.pluginmanager.unregister(plugin)
 
 
 def _description(item):
@@ -104,15 +131,32 @@ def _capture_screenshot(item):
     return None
 
 
-class PyreptReporter:
-    def __init__(self, html_path, json_path, title='Test Report', screenshots=True):
-        self.html_path = html_path
-        self.json_path = json_path
-        self.title = title
+def _subtest_label(report):
+    """`` [msg] (k=v)`` for subtest reports (pytest >= 9 or pytest-subtests), else ``None``."""
+    context = getattr(report, 'context', None)
+    if context is None or not hasattr(context, 'kwargs'):
+        return None
+    parts = []
+    if getattr(context, 'msg', None) is not None:
+        parts.append('[%s]' % context.msg)
+    if context.kwargs:
+        parts.append('(%s)' % ', '.join('%s=%s' % item for item in context.kwargs.items()))
+    return ' '.join(parts) or '(<subtest>)'
+
+
+def _skip_reason(report):
+    longrepr = report.longrepr
+    if isinstance(longrepr, tuple) and len(longrepr) == 3:
+        reason = longrepr[2]
+        return reason[len('Skipped: '):] if reason.startswith('Skipped: ') else reason
+    return str(longrepr) if longrepr else None
+
+
+class PyreptAnnotator:
+    """Adds description, markers and failure screenshots to each test report."""
+
+    def __init__(self, screenshots=True):
         self.screenshots = screenshots
-        self.summary_stats = new_summary_stats()
-        self.test_results = []
-        self._start = time.time()
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(self, item, call):
@@ -120,17 +164,51 @@ class PyreptReporter:
         report = outcome.get_result()
         report.pyrept_description = _description(item)
         report.pyrept_attachments = []
-        report.pyrept_markers = sorted({m.name for m in item.iter_markers()
-                                        if m.name not in ('parametrize', 'usefixtures', 'filterwarnings')})
+        report.pyrept_markers = sorted({m.name for m in item.iter_markers() if m.name not in _IGNORED_MARKERS})
         if self.screenshots and report.when == 'call' and report.failed:
             shot = _capture_screenshot(item)
             if shot:
                 report.pyrept_attachments.append(shot)
 
+
+class PyreptReporter:
+    def __init__(self, html_path, json_path, title='Test Report'):
+        self.html_path = html_path
+        self.json_path = json_path
+        self.title = title
+        self.summary_stats = new_summary_stats()
+        self.test_results = []
+        self._reruns = {}
+        self._start = time.time()
+
     def _record(self, report, name, result):
         traceback = None
         if result in ('failed', 'error') and report.longrepr is not None:
             traceback = str(report.longrepr)
+        elif result == 'skipped':
+            reason = _skip_reason(report)
+            if hasattr(report, 'wasxfail'):
+                traceback = 'Expected failure: %s' % report.wasxfail if report.wasxfail else 'Expected failure'
+            elif reason:
+                traceback = 'Skipped: %s' % reason
+        location = report.location or (report.nodeid, None, '')
+        metadata = {
+            'framework': 'pytest',
+            'duration': round(getattr(report, 'duration', 0) or 0, 4),
+            'phase': report.when,
+            'location': '%s:%s' % (location[0], (location[1] or 0) + 1),
+            'tags': getattr(report, 'pyrept_markers', []),
+        }
+        retries = self._reruns.pop(report.nodeid, 0) if report.when in ('call', 'setup') else 0
+        if retries:
+            metadata['retries'] = retries
+            metadata['flaky'] = result == 'passed'
+        attachments = list(getattr(report, 'pyrept_attachments', None) or [])
+        if result in ('failed', 'error'):
+            # Captured stdout/stderr/log of the failing test, as pytest shows it in the terminal.
+            for title, content in getattr(report, 'sections', None) or []:
+                if content and content.strip():
+                    attachments.append(make_attachment(title, 'text/plain', text=content))
         record_outcome(
             self.summary_stats,
             self.test_results,
@@ -138,17 +216,22 @@ class PyreptReporter:
             outcome=result,
             description=getattr(report, 'pyrept_description', None),
             traceback=traceback,
-            metadata={
-                'framework': 'pytest',
-                'duration': round(report.duration, 4),
-                'phase': report.when,
-                'location': '%s:%s' % (report.location[0], (report.location[1] or 0) + 1),
-                'tags': getattr(report, 'pyrept_markers', []),
-            },
-            attachments=getattr(report, 'pyrept_attachments', None) or None,
+            metadata=metadata,
+            attachments=attachments or None,
         )
 
     def pytest_runtest_logreport(self, report):
+        if report.outcome == 'rerun':  # pytest-rerunfailures: the final attempt is reported normally
+            self._reruns[report.nodeid] = self._reruns.get(report.nodeid, 0) + 1
+            return
+        subtest = _subtest_label(report)
+        if subtest is not None:
+            # Passing subtests are covered by the outcome of the test that contains them.
+            if report.failed:
+                self._record(report, '%s %s' % (report.nodeid, subtest), 'failed')
+            elif report.skipped:
+                self._record(report, '%s %s' % (report.nodeid, subtest), 'skipped')
+            return
         xfail = hasattr(report, 'wasxfail')
         if report.when == 'call':
             if xfail:
@@ -167,6 +250,25 @@ class PyreptReporter:
                 self._record(report, report.nodeid, 'skipped')
         elif report.when == 'teardown' and report.failed:
             self._record(report, report.nodeid + '::teardown', 'error')
+
+    def pytest_collectreport(self, report):
+        # Import errors, syntax errors, module-level skips: without this the
+        # report would look clean while pytest itself fails.
+        if report.failed:
+            outcome = 'error'
+        elif report.skipped:
+            outcome = 'skipped'
+        else:
+            return
+        traceback = str(report.longrepr) if outcome == 'error' else 'Skipped: %s' % _skip_reason(report)
+        record_outcome(
+            self.summary_stats,
+            self.test_results,
+            name=report.nodeid or '<collection>',
+            outcome=outcome,
+            traceback=traceback,
+            metadata={'framework': 'pytest', 'phase': 'collect', 'location': report.nodeid},
+        )
 
     def pytest_sessionfinish(self, session):
         context = build_context(self.summary_stats, self.test_results, title=self.title,

@@ -7,7 +7,6 @@ setup(
     name='pyrept',
     packages=find_packages(exclude=['tests', 'tests.*']),
     use_scm_version=True,
-    setup_requires=['setuptools_scm'],
     description='Searchable, self-contained HTML and JSON test reports for pytest, unittest, nose2, behave/Cucumber and Playwright.',
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -37,16 +36,17 @@ setup(
     keywords=['pytest', 'unittest', 'nose2', 'behave', 'cucumber', 'bdd', 'playwright', 'testing', 'reporting',
               'html-report', 'json-report'],
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Topic :: Software Development :: Testing',
-        'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3.12',
         'Programming Language :: Python :: 3.13',
+        'Programming Language :: Python :: 3.14',
+        'Programming Language :: Python :: 3 :: Only',
         'Framework :: Pytest',
     ]
 )

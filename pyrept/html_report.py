@@ -5,10 +5,12 @@ import copy
 import logging
 import os
 import sys
+import time
 import traceback
 import unittest
 
 from nose2.events import Plugin
+from nose2.result import ERROR, FAIL, PASS, SKIP, SUBTEST
 
 from .report import (
     DEFAULT_HTML_REPORT_PATH,
@@ -57,6 +59,7 @@ class HTMLReporter(Plugin):
         cli_paths = fetch_file_path()
         self.summary_stats = new_summary_stats()
         self.test_results = []
+        self._start_times = {}
 
         # Precedence: command line > nose2.cfg > defaults.
         # ``path`` is accepted as a legacy alias of ``html-report-path``.
@@ -85,30 +88,58 @@ class HTMLReporter(Plugin):
     def _generate_search_terms(self):
         return generate_search_terms(self.test_results)
 
+    def startTest(self, event):
+        self._start_times[event.test.id()] = event.startTime
+
     def testOutcome(self, event):
         """
         Reports the outcome of each test
         """
-        test_case_import_path = event.test.id()
+        test = event.test
+        test_case_import_path = test.id()
 
         # Ignore _ErrorHolder (for arbitrary errors like module import errors),
-        # as there will be no doc string in these scenarios
+        # as there will be no doc string in these scenarios. Subtests carry
+        # the docstring of the test method they belong to.
         test_case_doc = None
-        if not isinstance(event.test, unittest.suite._ErrorHolder):
-            test_case_doc = getattr(event.test, '_testMethodDoc', None)
+        if not isinstance(test, unittest.suite._ErrorHolder):
+            doc_source = getattr(test, 'test_case', test)
+            test_case_doc = getattr(doc_source, '_testMethodDoc', None)
 
         formatted_traceback = None
-        if event.outcome in ['failed', 'error'] and event.exc_info:
+        if event.exc_info:
             formatted_traceback = ''.join(traceback.format_exception(*event.exc_info))
+
+        metadata = copy.copy(event.metadata) or {}
+        outcome = event.outcome
+        if outcome == SUBTEST:
+            if not event.exc_info:
+                # Passing subtests are covered by the parent test's own outcome.
+                return
+            failure_exception = getattr(test, 'failureException', AssertionError)
+            outcome = FAIL if issubclass(event.exc_info[0], failure_exception) else ERROR
+        elif outcome == FAIL and event.expected:
+            outcome = SKIP
+            formatted_traceback = 'Expected failure:\n' + (formatted_traceback or '')
+            metadata['expected_failure'] = True
+        elif outcome == PASS and not event.expected:
+            outcome = FAIL
+            formatted_traceback = 'Unexpected success: test was marked @expectedFailure but passed.'
+        elif outcome == SKIP and event.reason:
+            formatted_traceback = 'Skipped: %s' % event.reason
+
+        start = self._start_times.pop(test_case_import_path, None)
+        if start is not None and 'duration' not in metadata:
+            metadata['duration'] = round(max(time.time() - start, 0), 4)
 
         record_outcome(
             self.summary_stats,
             self.test_results,
             name=test_case_import_path,
-            outcome=event.outcome,
+            outcome=outcome,
             description=test_case_doc,
             traceback=formatted_traceback,
-            metadata=copy.copy(event.metadata),
+            metadata=metadata,
         )
 
     def afterSummaryReport(self, event):

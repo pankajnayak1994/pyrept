@@ -34,7 +34,7 @@ def create_plugin_instance():
 class NosePluginTests(unittest.TestCase):
     def test_outcome_processing_successful_test(self):
         test_function = _test_func
-        ev = events.TestOutcomeEvent(test_function, None, result.PASS)
+        ev = events.TestOutcomeEvent(test_function, None, result.PASS, expected=True)
 
         reporter = create_plugin_instance()
         reporter.testOutcome(ev)
@@ -50,7 +50,7 @@ class NosePluginTests(unittest.TestCase):
         test_function = _test_func_fail
         try:
             test_function()
-        except:
+        except AssertionError:
             exc_info = sys.exc_info()
         ev = events.TestOutcomeEvent(test_function, None, result.FAIL, exc_info=exc_info)
 
@@ -66,7 +66,7 @@ class NosePluginTests(unittest.TestCase):
         self.assertIn('assert 1 == 2', test_result['traceback'])
 
     def test_summary_stats_new_test(self):
-        ev = events.TestOutcomeEvent(_test_func, None, result.PASS)
+        ev = events.TestOutcomeEvent(_test_func, None, result.PASS, expected=True)
         reporter = create_plugin_instance()
         reporter.testOutcome(ev)
 
@@ -74,7 +74,7 @@ class NosePluginTests(unittest.TestCase):
         self.assertEqual(reporter.summary_stats['passed'], 1)
 
     def test_summary_stats_increment(self):
-        ev = events.TestOutcomeEvent(_test_func, None, result.PASS)
+        ev = events.TestOutcomeEvent(_test_func, None, result.PASS, expected=True)
         reporter = create_plugin_instance()
         reporter.summary_stats['passed'] = 10
         reporter.testOutcome(ev)
@@ -83,7 +83,7 @@ class NosePluginTests(unittest.TestCase):
         self.assertEqual(reporter.summary_stats['passed'], 11)
 
     def test_summary_stats_total(self):
-        ev = events.TestOutcomeEvent(_test_func, None, result.PASS)
+        ev = events.TestOutcomeEvent(_test_func, None, result.PASS, expected=True)
         reporter = create_plugin_instance()
         for i in range(0, 20):
             reporter.testOutcome(ev)
@@ -95,7 +95,7 @@ class NosePluginTests(unittest.TestCase):
         test_function = _test_func_fail
         try:
             test_function()
-        except:
+        except AssertionError:
             exc_info = sys.exc_info()
         ev = events.TestOutcomeEvent(test_function, None, result.ERROR, exc_info=exc_info)
 
@@ -150,3 +150,148 @@ class ConfigPathTests(unittest.TestCase):
         import os
         tmp, reporter = self._reporter_with_cfg('[html-report]\npath = {tmp}/legacy.html\n')
         self.assertEqual(reporter._config['html_report_path'], os.path.realpath(os.path.join(tmp, 'legacy.html')))
+
+
+class _Sample(unittest.TestCase):
+    """Real TestCase so events carry real ids, docstrings and subtests."""
+
+    def test_method(self):
+        """Sample docstring."""
+
+
+def _exc_info(exc):
+    try:
+        raise exc
+    except BaseException:
+        return sys.exc_info()
+
+
+class OutcomeMappingTests(unittest.TestCase):
+    """nose2 reports expected failures, unexpected successes and subtests through
+    the generic failed/passed/subtest outcomes; they need the same mapping as
+    the unittest runner."""
+
+    def setUp(self):
+        self.test = _Sample('test_method')
+        self.reporter = create_plugin_instance()
+
+    def _make_subtest(self, **params):
+        # TestCase.subTest() is a no-op outside a running test, so build one directly.
+        from unittest.case import _SubTest, _subtest_msg_sentinel
+        return _SubTest(self.test, _subtest_msg_sentinel, params)
+
+    def _only_result(self):
+        self.assertEqual(len(self.reporter.test_results), 1, self.reporter.test_results)
+        return self.reporter.test_results[0]
+
+    def test_expected_failure_is_skipped(self):
+        ev = events.TestOutcomeEvent(self.test, None, result.FAIL, _exc_info(AssertionError('x')), expected=True)
+        self.reporter.testOutcome(ev)
+        r = self._only_result()
+        self.assertEqual(r['result'], 'skipped')
+        self.assertTrue(r['traceback'].startswith('Expected failure:'))
+        self.assertTrue(r['metadata']['expected_failure'])
+        self.assertEqual(self.reporter.summary_stats['failed'], 0)
+
+    def test_unexpected_success_is_failed(self):
+        self.reporter.testOutcome(events.TestOutcomeEvent(self.test, None, result.PASS, expected=False))
+        r = self._only_result()
+        self.assertEqual(r['result'], 'failed')
+        self.assertIn('Unexpected success', r['traceback'])
+
+    def test_passing_subtest_is_not_counted(self):
+        subtest = self._make_subtest(i=0)
+        self.reporter.testOutcome(events.TestOutcomeEvent(subtest, None, result.SUBTEST, None))
+        self.assertEqual(self.reporter.test_results, [])
+        self.assertEqual(self.reporter.summary_stats['total'], 0)
+        self.assertNotIn('subtest', self.reporter.summary_stats)
+
+    def test_failing_and_erroring_subtests(self):
+        subtest = self._make_subtest(i=1)
+        self.reporter.testOutcome(events.TestOutcomeEvent(
+            subtest, None, result.SUBTEST, _exc_info(AssertionError('bad'))))
+        self.reporter.testOutcome(events.TestOutcomeEvent(
+            subtest, None, result.SUBTEST, _exc_info(KeyError('k'))))
+        failed, errored = self.reporter.test_results
+        self.assertEqual(failed['result'], 'failed')
+        self.assertEqual(errored['result'], 'error')
+        self.assertIn('(i=1)', failed['name'])
+        self.assertEqual(failed['description'], 'Sample docstring.')
+        self.assertNotIn('subtest', self.reporter.summary_stats)
+
+    def test_skip_reason_is_kept(self):
+        self.reporter.testOutcome(events.TestOutcomeEvent(self.test, None, result.SKIP, reason='no network'))
+        r = self._only_result()
+        self.assertEqual(r['result'], 'skipped')
+        self.assertEqual(r['traceback'], 'Skipped: no network')
+
+    def test_duration_from_start_test(self):
+        import time
+        self.reporter.startTest(events.StartTestEvent(self.test, None, time.time() - 0.25))
+        self.reporter.testOutcome(events.TestOutcomeEvent(self.test, None, result.PASS, expected=True))
+        self.assertGreaterEqual(self._only_result()['metadata']['duration'], 0.25)
+
+    def test_event_metadata_is_not_mutated(self):
+        ev = events.TestOutcomeEvent(self.test, None, result.PASS, expected=True)
+        ev.metadata['custom'] = 1
+        self.reporter.testOutcome(ev)
+        self.reporter.test_results[0]['metadata']['extra'] = 2
+        self.assertEqual(ev.metadata, {'custom': 1})
+
+
+class NoseEndToEndTests(unittest.TestCase):
+    def test_real_nose2_run(self):
+        import json
+        import os
+        import shutil
+        import subprocess
+        import tempfile
+        import textwrap
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        with open(os.path.join(tmp, 'test_sample.py'), 'w') as fh:
+            fh.write(textwrap.dedent('''
+                import unittest
+
+                class T(unittest.TestCase):
+                    def test_ok(self):
+                        """Works."""
+
+                    def test_fail(self):
+                        self.assertEqual(1, 2)
+
+                    @unittest.expectedFailure
+                    def test_xfail(self):
+                        self.assertTrue(False)
+
+                    @unittest.expectedFailure
+                    def test_xpass(self):
+                        pass
+
+                    @unittest.skip("later")
+                    def test_skip(self):
+                        pass
+
+                    def test_subtests(self):
+                        for i in range(3):
+                            with self.subTest(i=i):
+                                self.assertNotEqual(i, 1)
+            '''))
+        with open(os.path.join(tmp, 'nose2.cfg'), 'w') as fh:
+            fh.write('[unittest]\nplugins = pyrept.html_report\n'
+                     '[html-report]\nalways-on = True\n'
+                     'html-report-path = out/r.html\njson-report-path = out/r.json\n')
+        subprocess.run([sys.executable, '-m', 'nose2'], cwd=tmp, check=False, capture_output=True)
+        with open(os.path.join(tmp, 'out', 'r.json'), encoding='utf-8') as fh:
+            data = json.load(fh)
+        stats = data['test_summary']
+        self.assertEqual(stats['total'], 6)
+        self.assertEqual(stats['passed'], 1)
+        self.assertEqual(stats['failed'], 3)  # test_fail, unexpected success, subtest i=1
+        self.assertEqual(stats['skipped'], 2)  # skip + expected failure
+        self.assertNotIn('subtest', stats)
+        results = {r['name'].split('.')[-1]: r['result'] for r in data['test_results']}
+        self.assertEqual(results['test_xfail'], 'skipped')
+        self.assertEqual(results['test_xpass'], 'failed')
+        self.assertEqual(results['test_subtests (i=1)'], 'failed')
+        self.assertTrue(os.path.exists(os.path.join(tmp, 'out', 'r.html')))

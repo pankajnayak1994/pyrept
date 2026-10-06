@@ -166,7 +166,7 @@ footer a { color: var(--accent); }
         {% if md.get('duration') is number %}<span class="dur">{{ '%.3f'|format(md.duration) }}s</span>{% endif %}
       </summary>
       <div class="body">
-        {% if md.get('location') %}<p class="meta">{{ md.location|e }}{% if md.get('project') %} · {{ md.project|e }}{% endif %}{% if md.get('retries') %} · retries: {{ md.retries }}{% endif %}{% if md.get('flaky') %} · flaky{% endif %}</p>{% endif %}
+        {% if md.get('location') %}<p class="meta">{{ md.location|e }}{% if md.get('project') %} · {{ md.project|e }}{% endif %}{% if md.get('retries') %} · retries: {{ md.retries|e }}{% endif %}{% if md.get('flaky') %} · flaky{% endif %}</p>{% endif %}
         <h3>Description</h3>
         {% if r.description %}<p class="desc">{{ r.description|e }}</p>{% else %}<p class="meta"><em>No description (add a docstring to the test).</em></p>{% endif %}
         {% if r.traceback %}
@@ -178,12 +178,16 @@ footer a { color: var(--accent); }
         <h3>Attachments</h3>
         <div class="attachments">
           {% for a in attachments %}
-            {% if a.content_type and a.content_type.startswith('image/') and a.data %}
-              <figure><img loading="lazy" alt="{{ a.name|e }}" src="data:{{ a.content_type|e }};base64,{{ a.data }}"><figcaption>{{ a.name|e }}</figcaption></figure>
+            {%- set ctype = (a.content_type or 'application/octet-stream')|string %}
+            {%- set safe_path = a.path and not (a.path|string|trim|lower).startswith(('javascript:', 'vbscript:', 'data:')) %}
+            {% if ctype.startswith('image/') and a.data %}
+              <figure><img loading="lazy" alt="{{ a.name|e }}" src="data:{{ ctype|e }};base64,{{ a.data|e }}"><figcaption>{{ a.name|e }}</figcaption></figure>
             {% elif a.text %}
               <figure style="flex:1 1 100%"><figcaption>{{ a.name|e }}</figcaption><pre class="tb"><code>{{ a.text|e }}</code></pre></figure>
-            {% elif a.path %}
-              <p><a href="{{ a.path|e }}" target="_blank" rel="noopener">{{ a.name|e }}</a> <span class="meta">({{ a.content_type|e }})</span></p>
+            {% elif a.data %}
+              <p><a href="data:{{ ctype|e }};base64,{{ a.data|e }}" download="{{ a.name|e }}">{{ a.name|e }}</a> <span class="meta">({{ ctype|e }})</span></p>
+            {% elif safe_path %}
+              <p><a href="{{ a.path|e }}" target="_blank" rel="noopener">{{ a.name|e }}</a> <span class="meta">({{ ctype|e }})</span></p>
             {% endif %}
           {% endfor %}
         </div>
@@ -247,9 +251,17 @@ footer a { color: var(--accent); }
     btn.addEventListener('click', function (ev) {
       ev.preventDefault();
       var text = btn.parentNode.querySelector('code').textContent;
-      if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () {
-        btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1200);
-      });
+      function done() { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1200); }
+      function fallback() {
+        // navigator.clipboard is missing on some file:// pages and older browsers
+        var area = document.createElement('textarea');
+        area.value = text; area.style.position = 'fixed'; area.style.opacity = '0';
+        document.body.appendChild(area); area.select();
+        try { if (document.execCommand('copy')) done(); } catch (e) {}
+        document.body.removeChild(area);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+      else fallback();
     });
   });
   var box = document.getElementById('lightbox');

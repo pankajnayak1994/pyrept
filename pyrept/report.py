@@ -63,7 +63,7 @@ def record_outcome(summary_stats, test_results, name, outcome, description=None,
                    traceback=None, metadata=None, attachments=None):
     """Append one test result and update the running summary counters."""
     summary_stats[outcome] = summary_stats.get(outcome, 0) + 1
-    summary_stats['total'] += 1
+    summary_stats['total'] = summary_stats.get('total', 0) + 1
     metadata = dict(metadata or {})
     if attachments:
         metadata.setdefault('attachments', []).extend(attachments)
@@ -88,7 +88,9 @@ class ReportCollector:
     def add(self, name, outcome, description=None, traceback=None, metadata=None, attachments=None):
         if outcome not in VALID_OUTCOMES:
             raise ValueError('Unknown outcome %r; expected one of %s' % (outcome, ', '.join(VALID_OUTCOMES)))
-        record_outcome(self.summary_stats, self.test_results, name, outcome, description=description,
+        if description is not None and not isinstance(description, str):
+            description = str(description)
+        record_outcome(self.summary_stats, self.test_results, str(name), outcome, description=description,
                        traceback=traceback, metadata=metadata, attachments=attachments)
 
     def context(self):
@@ -115,8 +117,8 @@ def generate_search_terms(test_results):
     search_terms = {}
     for test_result in test_results:
         tokens = [test_result['name']]
-        if test_result['description']:
-            tokens.extend(test_result['description'].split())
+        if test_result.get('description'):
+            tokens.extend(str(test_result['description']).split())
         for token in tokens:
             names = search_terms.setdefault(token, [])
             if test_result['name'] not in names:
@@ -131,12 +133,10 @@ def build_context(summary_stats, test_results, title='Test Report', environment=
         stats.setdefault(key, 0)
     executed = stats.get('total', 0) - stats['skipped']
     stats['percentage'] = round((stats['passed'] / executed) * 100, 2) if executed > 0 else 0
-    durations = [r['metadata'].get('duration') for r in test_results
-                 if isinstance(r.get('metadata'), dict) and isinstance(r['metadata'].get('duration'), (int, float))]
-    if duration is None and durations:
-        duration = sum(durations)
-    slowest = sorted((r for r in test_results if isinstance((r.get('metadata') or {}).get('duration'), (int, float))),
-                     key=lambda r: r['metadata']['duration'], reverse=True)[:5]
+    timed = [r for r in test_results if _duration_of(r) is not None]
+    if duration is None and timed:
+        duration = sum(_duration_of(r) for r in timed)
+    slowest = sorted((r for r in timed if _duration_of(r) > 0), key=_duration_of, reverse=True)[:5]
     env = default_environment()
     env.update(environment or {})
     return {
@@ -151,12 +151,20 @@ def build_context(summary_stats, test_results, title='Test Report', environment=
     }
 
 
+def _duration_of(result):
+    value = (result.get('metadata') or {}).get('duration')
+    # bool is an int subclass but never a duration
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return value
+    return None
+
+
 _RESULT_ORDER = {'error': 0, 'failed': 1, 'skipped': 2, 'passed': 3}
 
 
 def _sort_key(result):
     # Problems first, then alphabetical - the things you need to look at are on top.
-    return (_RESULT_ORDER.get(result['result'], 4), result['name'])
+    return (_RESULT_ORDER.get(result['result'], 4), str(result['name']))
 
 
 def _ensure_parent_dir(path):

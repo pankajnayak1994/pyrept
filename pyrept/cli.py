@@ -37,11 +37,16 @@ def main(argv=None):
             'Framework': args.source.capitalize(),
             'Source': ', '.join(os.path.basename(p) for p in args.inputs)})
         loader = IMPORTERS[args.source]
+        missing = [path for path in args.inputs if not os.path.isfile(path)]
+        if missing:
+            print('pyrept: input file not found: %s' % ', '.join(missing), file=sys.stderr)
+            return 2
         for path in args.inputs:
-            if not os.path.isfile(path):
-                print('pyrept: input file not found: %s' % path, file=sys.stderr)
+            try:
+                loader(path, collector=collector)
+            except (OSError, ValueError) as exc:  # unreadable file, invalid JSON, wrong report format
+                print('pyrept: cannot read %s report %s: %s' % (args.source, path, exc), file=sys.stderr)
                 return 2
-            loader(path, collector=collector)
         context = collector.write(html_path=os.path.realpath(args.html), json_path=os.path.realpath(args.json))
         stats = context['test_summary']
         print('pyrept: %d tests (%d passed, %d failed, %d errors, %d skipped)' % (

@@ -2,6 +2,7 @@
 Import a Playwright Test JSON report (``npx playwright test --reporter=json``).
 Each test x project (browser) becomes one test; screenshots are embedded.
 """
+import base64
 import json
 import os
 
@@ -38,9 +39,27 @@ def _error_text(result):
     return '\n\n'.join(parts) or None
 
 
+def _output_text(chunks):
+    # Each chunk is {"text": ...} or, for binary output, {"buffer": <base64>}.
+    parts = []
+    for chunk in chunks or []:
+        if not isinstance(chunk, dict):
+            continue
+        if chunk.get('text') is not None:
+            parts.append(chunk['text'])
+        elif chunk.get('buffer'):
+            try:
+                parts.append(base64.b64decode(chunk['buffer']).decode('utf-8', 'replace'))
+            except (ValueError, TypeError):
+                pass
+    return ''.join(parts)
+
+
 def load_playwright_json(path, collector=None, title='Playwright Test Report'):
-    with open(path, encoding='utf-8') as fh:
+    with open(path, encoding='utf-8-sig') as fh:
         report = json.load(fh)
+    if not isinstance(report, dict) or not isinstance(report.get('suites', []), list):
+        raise ValueError('%s is not a Playwright JSON report (expected an object with "suites")' % path)
     base_dir = os.path.dirname(os.path.abspath(path))
     collector = collector or ReportCollector(title=title)
 
@@ -65,9 +84,10 @@ def load_playwright_json(path, collector=None, title='Playwright Test Report'):
                         data=att.get('body'),  # already base64 in the JSON reporter
                         path=att_path))
 
-                stdout = ''.join(o.get('text', '') for o in last.get('stdout') or [] if isinstance(o, dict))
-                if stdout.strip():
-                    attachments.append(make_attachment('stdout', 'text/plain', text=stdout))
+                for stream in ('stdout', 'stderr'):
+                    output = _output_text(last.get(stream))
+                    if output.strip():
+                        attachments.append(make_attachment(stream, 'text/plain', text=output))
 
                 collector.add(
                     name=name,
@@ -84,4 +104,17 @@ def load_playwright_json(path, collector=None, title='Playwright Test Report'):
                     },
                     attachments=attachments or None,
                 )
+
+    # Errors outside any test (config errors, a spec file that fails to import, ...).
+    for err in report.get('errors') or []:
+        if not isinstance(err, dict):
+            continue
+        location = err.get('location') or {}
+        collector.add(
+            name='Global error' + (' in %s' % location['file'] if location.get('file') else ''),
+            outcome='error',
+            traceback=err.get('stack') or err.get('message') or json.dumps(err),
+            metadata={'framework': 'playwright',
+                      'location': '%s:%s' % (location.get('file', ''), location.get('line', ''))},
+        )
     return collector

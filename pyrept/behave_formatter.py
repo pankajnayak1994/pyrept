@@ -20,7 +20,10 @@ or register it once in ``behave.ini``::
     pyrept_html = reports/report.html
     pyrept_json = reports/report.json
 
-and run ``behave -f pyrept -o /dev/null`` (``-f pretty`` can be added as well).
+and run ``behave -f pyrept -o /dev/null -f pretty``. behave pairs each ``-o`` with the
+``-f`` before it, so keep ``-f pyrept -o /dev/null`` first or the console output is lost.
+
+Screenshots and other files attached with ``context.attach(mime_type, data)`` are embedded.
 """
 import os
 
@@ -69,6 +72,7 @@ class PyreptFormatter(Formatter):
                                          environment={'Framework': 'behave %s' % getattr(behave, '__version__', '')})
         self._feature = None
         self._scenarios = []
+        self._attachments = {}  # id(scenario) -> attachments from context.attach()
 
     # behave calls these as it runs ------------------------------------------
     def feature(self, feature):
@@ -77,6 +81,16 @@ class PyreptFormatter(Formatter):
 
     def scenario(self, scenario):
         self._scenarios.append(scenario)
+
+    def embedding(self, mime_type, data):
+        """Called by behave for ``context.attach(mime_type, data)``."""
+        if not self._scenarios:
+            return  # attached outside a scenario (before_feature/before_all hooks)
+        attachments = self._attachments.setdefault(id(self._scenarios[-1]), [])
+        attachments.append(make_attachment(
+            name='Attachment %d' % (len(attachments) + 1),
+            content_type=mime_type,
+            data=data.encode('utf-8') if isinstance(data, str) else data))
 
     def eof(self):
         self._flush()
@@ -92,6 +106,7 @@ class PyreptFormatter(Formatter):
         for scenario in self._scenarios:
             self._record(scenario)
         self._scenarios = []
+        self._attachments = {}
 
     def _record(self, scenario):
         feature_name = self._feature.name if self._feature is not None else ''
@@ -106,16 +121,11 @@ class PyreptFormatter(Formatter):
         tags = ['@' + str(t) for t in getattr(scenario, 'effective_tags', None) or scenario.tags]
         description = '\n'.join(([' '.join(tags)] if tags else []) + [_step_line(s) for s in steps])
 
-        attachments = []
-        for step in steps:
-            for embedding in getattr(step, 'embeddings', None) or []:
-                attachments.append(make_attachment(
-                    name=getattr(embedding, 'name', None) or step.name,
-                    content_type=getattr(embedding, 'mime_type', None),
-                    data=getattr(embedding, 'data', None)))
+        attachments = self._attachments.get(id(scenario), [])
+        scenario_name = (scenario.name or '').strip() or 'Scenario'
 
         self.collector.add(
-            name='%s :: %s' % (feature_name, scenario.name) if feature_name else scenario.name,
+            name='%s :: %s' % (feature_name, scenario_name) if feature_name else scenario_name,
             outcome=map_status(scenario.status),
             description=description,
             traceback=traceback,

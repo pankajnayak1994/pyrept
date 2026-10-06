@@ -66,3 +66,88 @@ class BehaveEndToEndTests(unittest.TestCase):
         self.assertIn('nope', results['Demo :: Failing']['traceback'])
         self.assertEqual(results['Demo :: Undefined']['result'], 'error')
         self.assertIn('@smoke', results['Demo :: Passing']['metadata']['tags'])
+
+    def test_attachments_outlines_hooks_and_multiple_features(self):
+        import json
+        import os
+        import shutil
+        import subprocess
+        import sys
+        import tempfile
+        import textwrap
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        os.makedirs(os.path.join(tmp, 'features', 'steps'))
+        files = {
+            'features/shop.feature': '''
+                @shop
+                Feature: Shop
+                  Background:
+                    Given a step that passes
+
+                  Scenario: Attach
+                    Given a step that attaches
+
+                  Scenario Outline: Small <n>
+                    Given number <n> is small
+                    Examples:
+                      | n |
+                      | 1 |
+                      | 9 |
+
+                  Scenario: Hook breaks
+                    Given a step that passes
+            ''',
+            'features/other.feature': '''
+                Feature: Other
+                  Scenario: Plain
+                    Given a step that passes
+            ''',
+            'features/steps/steps.py': '''
+                from behave import given
+
+                @given('a step that passes')
+                def ok(context):
+                    pass
+
+                @given('a step that attaches')
+                def attach(context):
+                    context.attach('image/png', b'\\x89PNG')
+                    context.attach('text/plain', b'hello')
+
+                @given('number {n:d} is small')
+                def small(context, n):
+                    assert n < 5, 'too big'
+            ''',
+            'features/environment.py': '''
+                def after_scenario(context, scenario):
+                    if scenario.name == 'Hook breaks':
+                        raise RuntimeError('hook boom')
+            ''',
+        }
+        for name, body in files.items():
+            with open(os.path.join(tmp, name), 'w') as fh:
+                fh.write(textwrap.dedent(body))
+        subprocess.run([sys.executable, '-m', 'behave', '-f', 'pyrept.behave_formatter:PyreptFormatter',
+                        '-o', os.devnull, '-D', 'pyrept_json=out/r.json', '-D', 'pyrept_html=out/r.html',
+                        '-D', 'pyrept_title=Shop BDD'],
+                       cwd=tmp, check=False, capture_output=True)
+        with open(os.path.join(tmp, 'out', 'r.json'), encoding='utf-8') as fh:
+            data = json.load(fh)
+        self.assertEqual(data['test_report_title'], 'Shop BDD')
+        results = {r['name']: r for r in data['test_results']}
+        self.assertEqual(sorted(results), sorted([
+            'Shop :: Attach', 'Shop :: Small 1 -- @1.1', 'Shop :: Small 9 -- @1.2',
+            'Shop :: Hook breaks', 'Other :: Plain']))
+        attached = results['Shop :: Attach']['metadata']['attachments']
+        self.assertEqual([a['content_type'] for a in attached], ['image/png', 'text/plain'])
+        self.assertEqual(attached[0]['data'], 'iVBORw==')
+        self.assertEqual(results['Shop :: Small 9 -- @1.2']['result'], 'failed')
+        self.assertIn('too big', results['Shop :: Small 9 -- @1.2']['traceback'])
+        self.assertEqual(results['Shop :: Hook breaks']['result'], 'error')
+        self.assertIn('hook boom', results['Shop :: Hook breaks']['traceback'])
+        self.assertIn('@shop', results['Shop :: Attach']['metadata']['tags'])
+        self.assertEqual(results['Other :: Plain']['metadata']['tags'], [])
+        self.assertIn('Given a step that passes', results['Shop :: Attach']['description'])  # background step
+        with open(os.path.join(tmp, 'out', 'r.html'), encoding='utf-8') as fh:
+            self.assertIn('data:image/png;base64,iVBORw==', fh.read())
