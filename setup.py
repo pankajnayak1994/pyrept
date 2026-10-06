@@ -7,7 +7,8 @@ setup(
     name='pyrept',
     packages=find_packages(exclude=['tests', 'tests.*']),
     use_scm_version=True,
-    description='Searchable, self-contained HTML and JSON test reports for pytest, unittest, nose2, behave/Cucumber and Playwright.',
+    description=('Searchable HTML, JSON and JUnit XML test reports for pytest, unittest, nose2, behave, '
+                 'Playwright, Selenium and CI pipelines.'),
     long_description=long_description,
     long_description_content_type="text/markdown",
     author='Pankaj Kumar Nayak',
@@ -33,8 +34,14 @@ setup(
         'behave': ['behave>=1.2.6'],
         'playwright': ['pytest-playwright'],
     },
-    keywords=['pytest', 'unittest', 'nose2', 'behave', 'cucumber', 'bdd', 'playwright', 'testing', 'reporting',
-              'html-report', 'json-report'],
+    keywords=[
+        'pytest', 'unittest', 'nose2', 'behave', 'cucumber', 'bdd', 'playwright', 'selenium',
+        'testing', 'test-report', 'test-reports', 'test-results', 'test-automation', 'qa-automation',
+        'reporting', 'html-report', 'json-report', 'junit', 'junit-xml', 'xunit', 'xml-report',
+        'ci', 'continuous-integration', 'github-actions', 'gitlab-ci', 'jenkins', 'azure-devops',
+        'dashboard', 'quality-gates', 'regression-testing', 'baseline-comparison', 'flaky-tests',
+        'screenshots', 'cucumber-json', 'playwright-report', 'test-report-converter',
+    ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',

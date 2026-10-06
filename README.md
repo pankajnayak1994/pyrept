@@ -17,6 +17,8 @@ It works the same way with pytest, unittest, nose2, behave (Cucumber BDD) and br
 
 Every runner and converter can also do two CI-friendly things: write **JUnit XML** next to the HTML/JSON report, and compare against the previous run's `report.json` to highlight **new failures, fixed tests, still-failing tests and slowdowns**.
 
+Search-friendly summary: pyrept is a Python test report generator for pytest, unittest, nose2, behave/Cucumber, Playwright and Selenium. It creates offline HTML reports, JSON test results, JUnit XML for CI, test-result dashboards, failure screenshots, flaky-test metadata, baseline comparison and report conversion for GitHub Actions, GitLab CI, Jenkins and Azure DevOps.
+
 ![Report Screenshot](https://raw.githubusercontent.com/pankajnayak1994/pyrept/master/docs/images/report.png)
 
 ## Contents
