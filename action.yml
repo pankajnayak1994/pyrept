@@ -101,7 +101,7 @@ runs:
     - name: Comment on the pull request
       if: inputs.pr-comment == 'true' && github.event.pull_request.number && steps.summary.outputs.summary-file != ''
       continue-on-error: true  # forks and read-only tokens cannot comment; that must not fail the job
-      uses: actions/github-script@v7
+      uses: actions/github-script@v9
       env:
         SUMMARY_FILE: ${{ steps.summary.outputs.summary-file }}
       with:
