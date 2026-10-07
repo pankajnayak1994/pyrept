@@ -406,17 +406,17 @@ class PyreptReporter:
         artifacts = getattr(report, 'pyrept_artifacts', None)
         if not artifacts:
             return
-        target = next((r for r in reversed(self.test_results) if r['name'] == report.nodeid), None)
+        # The test's own entry, or its failing subtest's ("<nodeid> [msg] (k=v)").
+        target = next((r for r in reversed(self.test_results)
+                       if r['name'] == report.nodeid or r['name'].startswith(report.nodeid + ' ')), None)
         if target is None:
             return
         base = os.path.dirname(self.html_path)
         for artifact in artifacts:
-            path = artifact.get('path')
-            if not path:
-                continue
+            path = artifact['path']
             try:
                 link = os.path.relpath(path, base)  # relative, so it works when the folder is uploaded as one
-            except ValueError:  # another drive on Windows
+            except ValueError:  # pragma: no cover - another drive on Windows
                 link = path
             target['metadata'].setdefault('attachments', []).append(
                 make_attachment(artifact.get('name') or os.path.basename(path), artifact.get('content_type'),
@@ -481,16 +481,14 @@ class PyreptReporter:
     def pytest_sessionfinish(self, session):
         environment = {'Framework': 'pytest %s' % pytest.__version__, 'Python': platform.python_version(),
                        'Platform': platform.platform()}
-        hook = self.config.hook if self.config is not None else None
-        if hook is not None:
-            for extra in hook.pytest_pyrept_environment(config=self.config):
-                if isinstance(extra, dict):
-                    environment.update({str(k): v for k, v in extra.items()})
+        hook = self.config.hook
+        for extra in hook.pytest_pyrept_environment(config=self.config):
+            if isinstance(extra, dict):
+                environment.update({str(k): v for k, v in extra.items()})
         context = build_context(self.summary_stats, self.test_results, title=self.title, environment=environment,
                                 duration=time.time() - self._start,
                                 baseline=load_baseline(self.baseline_path))
-        if hook is not None:
-            hook.pytest_pyrept_context(config=self.config, context=context)
+        hook.pytest_pyrept_context(config=self.config, context=context)
         self.comparison = context['comparison']
         write_reports(context, html_path=self.html_path, json_path=self.json_path, junit_path=self.junit_path,
                       markdown_path=self.markdown_path, github_summary=self.github_summary)

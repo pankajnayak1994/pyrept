@@ -822,3 +822,129 @@ def test_other(page):
     names = [a['name'] for a in results['test_checkout']['metadata']['attachments']]
     assert names == ['Screenshot on failure', 'Browser console', 'worker.log',
                      'Playwright trace (open at https://trace.playwright.dev)', 'Video']
+
+
+def test_browser_page_edge_cases(pytester):
+    pytester.makeconftest(FAKE_BROWSER + '''
+
+class BrokenPage(FakePage):
+    def on(self, event, handler):
+        raise RuntimeError("page closed")
+
+
+class ClosingPage(FakePage):
+    def remove_listener(self, event, handler):
+        raise RuntimeError("page closed")
+
+
+@pytest.fixture
+def broken_page():
+    return BrokenPage()
+
+
+@pytest.fixture
+def closing_page():
+    return ClosingPage()
+''')
+    pytester.makepyfile('''
+import pytest
+from conftest import Message
+
+def test_many_messages(page):
+    for i in range(250):
+        page.emit("console", Message("log", "line %d" % i))
+        page.emit("pageerror", "err %d" % i)
+    assert False
+
+@pytest.fixture
+def page_cannot_listen(broken_page):
+    return broken_page
+
+def test_listeners_fail(request, page_cannot_listen):
+    assert False
+
+def test_page_closed(closing_page):
+    assert False
+''')
+    # The last two tests use other fixture names; alias them to "page" for the plugin.
+    pytester.makeconftest(pytester.path.joinpath('conftest.py').read_text() + '''
+
+@pytest.fixture(autouse=True)
+def _alias(request):
+    for name in ("broken_page", "closing_page"):
+        if name in request.fixturenames:
+            request.node.funcargs["page"] = request.getfixturevalue(name)
+''')
+    result = _run(pytester, '--pyrept')
+    assert result.ret == 1
+    results = {r['name'].split('::')[-1]: r for r in _load(pytester.path / 'report.json')['test_results']}
+    console = [a for a in results['test_many_messages']['metadata']['attachments'] if a['name'] == 'Browser console']
+    assert len(console[0]['text'].splitlines()) == 200
+    for name in ('test_listeners_fail', 'test_page_closed'):
+        assert results[name]['result'] == 'failed'
+
+
+def test_missing_playwright_output_folder(pytester):
+    pytester.makeconftest(FAKE_BROWSER.replace('if failed:', 'if False:'))
+    pytester.makepyfile('def test_checkout(page):\n    assert False\n')
+    _run(pytester, '--pyrept')
+    names = [a['name'] for a in _load(pytester.path / 'report.json')['test_results'][0]['metadata']['attachments']]
+    assert names == ['Screenshot on failure']
+
+
+def test_bdd_step_matching_helpers():
+    from types import SimpleNamespace
+    from pyrept.pytest_plugin import PyreptAnnotator, _bdd_step_index
+    bdd = {'steps': [('Given', 'a'), ('Given', 'a')], 'status': {0: 'passed'}}
+    assert _bdd_step_index(bdd, SimpleNamespace(keyword='Given ', name='a')) == 1
+    assert _bdd_step_index(bdd, SimpleNamespace(keyword='When', name='other')) is None
+    request = SimpleNamespace(node=SimpleNamespace())
+    annotator = PyreptAnnotator()
+    annotator.pytest_bdd_after_step(request, SimpleNamespace(keyword='Given', name='a'))  # no scenario recorded
+    annotator.pytest_bdd_step_error(request, SimpleNamespace(keyword='Given', name='a'))
+    request.node._pyrept_bdd = {'steps': [('Given', 'a')], 'status': {}}
+    annotator.pytest_bdd_step_error(request, SimpleNamespace(keyword='Then', name='unknown'))
+    assert request.node._pyrept_bdd['status'] == {}
+
+
+def test_hooks_returning_junk_are_ignored(pytester):
+    pytester.makeconftest('''
+def pytest_pyrept_environment(config):
+    return ["not", "a", "dict"]
+
+def pytest_pyrept_attachments(item, report):
+    return ["not a dict", None]
+''')
+    pytester.makepyfile('def test_bad():\n    assert False\n')
+    _run(pytester, '--pyrept')
+    data = _load(pytester.path / 'report.json')
+    assert 'not' not in data['environment']
+    assert 'attachments' not in data['test_results'][0]['metadata']
+
+
+def test_fail_under_overrides_a_forced_success(pytester):
+    pytester.makepyfile(KNOWN_FAILURE_TESTS)
+    pytester.makeconftest('''
+import pytest
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_sessionfinish(session):
+    session.exitstatus = 0  # e.g. a plugin that tolerates failures
+''')
+    assert _run(pytester, '--pyrept').ret == 0
+    result = _run(pytester, '--pyrept-fail-under=90')
+    assert result.ret == 1
+    result.stdout.fnmatch_lines(['*pass rate 50.0% is below --pyrept-fail-under=90*'])
+
+
+def test_artifacts_attach_to_subtests_and_ignore_unknown_tests(tmp_path):
+    from types import SimpleNamespace
+    from pyrept.pytest_plugin import PyreptReporter
+    reporter = PyreptReporter(html_path=str(tmp_path / 'report.html'), json_path=str(tmp_path / 'report.json'))
+    reporter.test_results = [{'name': 't.py::test_x [step] (i=1)', 'metadata': {}}]
+    artifact = {'name': 'Video', 'content_type': 'video/webm', 'path': str(tmp_path / 'test-results' / 'video.webm')}
+    reporter._attach_artifacts(SimpleNamespace(nodeid='t.py::test_x', pyrept_artifacts=[artifact]))
+    assert reporter.test_results[0]['metadata']['attachments'][0]['path'] == 'test-results/video.webm'
+    reporter._attach_artifacts(SimpleNamespace(nodeid='t.py::test_other', pyrept_artifacts=[artifact]))
+    reporter._attach_artifacts(SimpleNamespace(nodeid='t.py::test_x', pyrept_artifacts=[]))
+    assert len(reporter.test_results[0]['metadata']['attachments']) == 1

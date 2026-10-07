@@ -27,7 +27,7 @@ def load_tap(path, collector=None, title='TAP Test Report'):
         if in_yaml:
             if raw.strip() == '...':
                 in_yaml = False
-            elif current is not None:
+            else:  # a YAML block always follows a test line
                 current['diagnostics'].append(raw[2:] if raw.startswith('  ') else raw.strip())
             continue
         if raw.startswith(' '):

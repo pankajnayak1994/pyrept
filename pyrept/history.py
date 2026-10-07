@@ -73,7 +73,6 @@ def _duration(result):
 
 
 def _summary(report):
-    stats = report.get('test_summary') if isinstance(report.get('test_summary'), dict) else {}
     results = [r for r in report['test_results'] if isinstance(r, dict)]
     counts = {key: sum(1 for r in results if r.get('result') == key)
               for key in ('passed', 'failed', 'error', 'skipped')}
@@ -84,9 +83,6 @@ def _summary(report):
     if not isinstance(duration, (int, float)) or isinstance(duration, bool):
         duration = sum(d for d in (_duration(r) for r in results) if d is not None)
     counts['duration'] = round(duration, 3)
-    # Prefer the report's own numbers when they are consistent with its results.
-    if stats.get('total') == counts['total'] and isinstance(stats.get('percentage'), (int, float)):
-        counts['percentage'] = stats['percentage']
     return counts
 
 

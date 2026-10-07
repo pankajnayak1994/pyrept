@@ -22,7 +22,6 @@ from .report import (
     DEFAULT_JSON_REPORT_PATH,
     DEFAULT_TEMPLATE_PATH,
     build_context,
-    generate_search_terms,
     new_summary_stats,
     record_outcome,
     write_reports,
@@ -121,12 +120,6 @@ class HTMLReporter(Plugin):
         def set_path(values):
             self._config[key] = os.path.realpath(_checked(option, values[0]))
         return set_path
-
-    def _sort_test_results(self):
-        return sorted(self.test_results, key=lambda x: x['name'])
-
-    def _generate_search_terms(self):
-        return generate_search_terms(self.test_results)
 
     def startTest(self, event):
         self._start_times[event.test.id()] = event.startTime
