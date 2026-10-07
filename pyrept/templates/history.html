@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="pyrept">
+{%- set brand = branding or {} %}
+{%- set sm = summary %}
+{%- set latest = runs[-1] if runs else none %}
+{%- set status = 'empty' if not latest or not latest.total else ('failed' if latest.failed + latest.error else 'passed') %}
+{%- set n = runs|length %}
+<title>{{ history_title|e }}</title>
+<style>
+{% include '_theme.css' %}
+{% if brand.accent %}:root, :root[data-theme] { --accent: {{ brand.accent }}; }{% endif %}
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .grid line { stroke: var(--border); stroke-dasharray: 3 4; }
+.chart text { fill: var(--faint); font: 11px var(--sans); }
+.chart .area { fill: url(#rateFill); }
+.chart .line { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; }
+.chart .dur-line { fill: none; stroke: #22d3ee; stroke-width: 2; stroke-linejoin: round; }
+.chart .pt { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.chart .pt.bad { stroke: var(--fail); }
+.chart rect.passed { fill: var(--pass); } .chart rect.failed { fill: var(--fail); }
+.chart rect.error { fill: var(--error); } .chart rect.skipped { fill: var(--skip); }
+.chart g.col:hover rect { opacity: .8; }
+table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.data th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
+  font-weight: 600; padding: 0 10px 8px 0; border-bottom: 1px solid var(--border); white-space: nowrap; }
+table.data td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--border); vertical-align: middle; }
+table.data tr:last-child td { border-bottom: 0; }
+table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.data td.name { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.strip { display: inline-flex; gap: 2px; vertical-align: middle; }
+.strip i { width: 9px; height: 16px; border-radius: 2px; background: var(--border); display: block; }
+.strip i.passed { background: var(--pass); opacity: .7; } .strip i.failed { background: var(--fail); }
+.strip i.error { background: var(--error); } .strip i.skipped { background: var(--skip); opacity: .6; }
+.table-wrap { overflow-x: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.pill-n { display: inline-block; min-width: 26px; text-align: center; font-weight: 700; font-size: 12px; border-radius: 99px;
+  padding: 1px 8px; background: var(--fail-soft); color: var(--fail); }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <span class="brand">
+      {%- if brand.logo %}<img src="{{ brand.logo|e }}" alt="">{% else %}<span class="mark" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"/></svg></span>{% endif %}
+      <span>pyrept <small>test history</small></span>
+    </span>
+    <button class="icon-btn" id="theme" type="button" title="Toggle dark mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><span>Theme</span></button>
+  </div>
+</div>
+
+<header class="hero is-{{ status }}">
+  <div class="wrap">
+    <span class="status-pill"><i></i>Latest run {% if status == 'failed' %}failed{% elif status == 'passed' %}passed{% else %}had no tests{% endif %}</span>
+    <h1>{{ history_title|e }}</h1>
+    <div class="meta-line">
+      <span>{{ n }} run{{ '' if n == 1 else 's' }}{% if n %} · {{ runs[0].timestamp }} → {{ latest.timestamp }}{% endif %}</span>
+      <span>generated {{ generated }}</span>
+    </div>
+    <div class="kpis" style="margin-top: 20px">
+      <div class="kpi"><div class="k">Runs</div><div class="v">{{ sm.runs }}</div></div>
+      <div class="kpi"><div class="k">Tests seen</div><div class="v">{{ sm.tests }}</div></div>
+      <div class="kpi"><div class="k">Latest pass rate</div><div class="v">{{ sm.latest_percentage if sm.latest_percentage is not none else '–' }}{% if sm.latest_percentage is not none %}%{% endif %}{% if sm.percentage_change is number %}<span class="d {{ 'up' if sm.percentage_change > 0 else ('down' if sm.percentage_change < 0 else '') }}">{{ '%+.2f'|format(sm.percentage_change) }}</span>{% endif %}</div></div>
+      <div class="kpi"><div class="k">Average pass rate</div><div class="v">{{ sm.average_percentage }}%</div></div>
+      <div class="kpi"><div class="k"><i class="seg-skipped"></i>Flaky tests</div><div class="v">{{ sm.flaky }}</div></div>
+      <div class="kpi"><div class="k"><i class="seg-failed"></i>Failing now</div><div class="v">{{ sm.failing_now }}</div></div>
+    </div>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+  {% if n %}
+  {%- set W, H, L, R, T, B = 1000, 230, 44, 14, 14, 30 %}
+  {%- set pw = W - L - R %}{% set ph = H - T - B %}
+  {%- set step = pw / (n - 1) if n > 1 else 0 %}
+  {%- set low = runs|map(attribute='percentage')|min %}
+  {%- set floor = [((low - 5) // 10 * 10)|int, 0]|max if low > 15 else 0 %}
+  {%- set span = 100 - floor %}
+  {%- set ticks = [floor, floor + span / 4, floor + span / 2, floor + 3 * span / 4, 100] %}
+  {%- macro x(i) %}{{ '%.1f'|format(L + (i * step if n > 1 else pw / 2)) }}{% endmacro %}
+  {%- macro y(p) %}{{ '%.1f'|format(T + (100 - p) * ph / span) }}{% endmacro %}
+  <section class="card card-pad section" aria-label="Pass rate over time">
+    <div class="card-head"><h2>Pass rate over time</h2><span class="meta">skipped tests excluded</span></div>
+    <svg class="chart" viewBox="0 0 {{ W }} {{ H }}" role="img" aria-label="Pass rate per run">
+      <defs><linearGradient id="rateFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".28"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+      <g class="grid">{% for p in ticks %}<line x1="{{ L }}" x2="{{ W - R }}" y1="{{ y(p) }}" y2="{{ y(p) }}"/><text x="{{ L - 8 }}" y="{{ y(p)|float + 4 }}" text-anchor="end">{{ '%g'|format(p|round(1)) }}%</text>{% endfor %}</g>
+      {%- set pts = [] %}{% for r in runs %}{% set _ = pts.append(x(loop.index0) ~ ',' ~ y(r.percentage)) %}{% endfor %}
+      {% if n > 1 %}<path class="area" d="M{{ x(0) }},{{ y(floor) }} L{{ pts|join(' L') }} L{{ x(n - 1) }},{{ y(floor) }} Z"/>{% endif %}
+      <polyline class="line" points="{{ pts|join(' ') }}"/>
+      {% for r in runs %}<circle class="pt{% if r.failed + r.error %} bad{% endif %}" cx="{{ x(loop.index0) }}" cy="{{ y(r.percentage) }}" r="4"><title>{{ r.timestamp }} · {{ r.percentage }}% ({{ r.passed }} passed, {{ r.failed }} failed, {{ r.error }} errors)</title></circle>{% endfor %}
+      {% for r in runs %}{% if n <= 12 or loop.first or loop.last or loop.index0 % ((n // 8) or 1) == 0 %}<text x="{{ x(loop.index0) }}" y="{{ H - 8 }}" text-anchor="middle">{{ r.timestamp[5:10] }}</text>{% endif %}{% endfor %}
+    </svg>
+  </section>
+
+  <div class="grid-2 section">
+    <section class="card card-pad" aria-label="Outcomes per run">
+      <div class="card-head"><h2>Outcomes per run</h2>
+        <span class="legend"><span><i class="seg-passed"></i>Passed</span><span><i class="seg-failed"></i>Failed</span><span><i class="seg-error"></i>Error</span><span><i class="seg-skipped"></i>Skipped</span></span></div>
+      {#- Half-width charts get their own, narrower coordinate system so labels stay readable. #}
+      {%- set W2, L2 = 520, 44 %}{% set pw2 = W2 - L2 - R %}
+      {%- set step2 = pw2 / (n - 1) if n > 1 else 0 %}
+      {%- set bw = (pw2 / n) * 0.64 %}
+      <svg class="chart" viewBox="0 0 {{ W2 }} {{ H }}" role="img" aria-label="Outcome mix per run">
+        <g class="grid">{% for f in [0, 0.5, 1] %}{% set gy = '%.1f'|format(T + ph - f * ph) %}<line x1="{{ L2 }}" x2="{{ W2 - R }}" y1="{{ gy }}" y2="{{ gy }}"/><text x="{{ L2 - 8 }}" y="{{ gy|float + 4 }}" text-anchor="end">{{ (f * 100)|int }}%</text>{% endfor %}</g>
+        {% for r in runs %}{% set total = r.total or 1 %}{% set cx = L2 + (loop.index0 + 0.5) * pw2 / n %}{% set ns = namespace(top=T + ph) %}
+        <g class="col"><title>{{ r.timestamp }}: {{ r.passed }} passed, {{ r.failed }} failed, {{ r.error }} errors, {{ r.skipped }} skipped</title>
+        {% for key in ['passed', 'skipped', 'error', 'failed'] %}{% if r[key] %}{% set h = r[key] * ph / total %}{% set ns.top = ns.top - h %}<rect class="{{ key }}" x="{{ '%.1f'|format(cx - bw / 2) }}" y="{{ '%.1f'|format(ns.top) }}" width="{{ '%.1f'|format(bw) }}" height="{{ '%.1f'|format(h) }}" rx="2"/>{% endif %}{% endfor %}
+        </g>{% endfor %}
+      </svg>
+    </section>
+    <section class="card card-pad" aria-label="Run duration">
+      {%- set max_d = runs|map(attribute='duration')|max or 1 %}
+      <div class="card-head"><h2>Run duration</h2><span class="meta">longest {{ '%.1f'|format(max_d) }}s</span></div>
+      {%- set dpts = [] %}{% for r in runs %}{% set _ = dpts.append(('%.1f'|format(L2 + (loop.index0 * step2 if n > 1 else pw2 / 2))) ~ ',' ~ ('%.1f'|format(T + ph - (r.duration or 0) * ph / max_d))) %}{% endfor %}
+      <svg class="chart" viewBox="0 0 {{ W2 }} {{ H }}" role="img" aria-label="Duration per run">
+        <g class="grid">{% for f in [0, 0.5, 1] %}{% set gy = '%.1f'|format(T + ph - f * ph) %}<line x1="{{ L2 }}" x2="{{ W2 - R }}" y1="{{ gy }}" y2="{{ gy }}"/><text x="{{ L2 - 8 }}" y="{{ gy|float + 4 }}" text-anchor="end">{{ '%.0f'|format(f * max_d) }}s</text>{% endfor %}</g>
+        <polyline class="dur-line" points="{{ dpts|join(' ') }}"/>
+        {% for r in runs %}{% set c = dpts[loop.index0].split(',') %}<circle class="pt" style="stroke:#22d3ee" cx="{{ c[0] }}" cy="{{ c[1] }}" r="3.5"><title>{{ r.timestamp }} · {{ r.duration }}s</title></circle>{% endfor %}
+      </svg>
+    </section>
+  </div>
+  {% endif %}
+
+  {%- macro strip(outcomes) %}<span class="strip" aria-hidden="true">{% for o in outcomes %}<i class="{{ o or 'absent' }}" title="{{ runs[loop.index0].timestamp }}: {{ o or 'not run' }}"></i>{% endfor %}</span>{% endmacro %}
+
+  <div class="grid-2 section">
+    <section class="card card-pad" aria-label="Flaky tests">
+      <div class="card-head"><h2>Flaky tests</h2><span class="meta">fail, pass, fail again</span></div>
+      {% if flaky_tests %}
+      <div class="table-wrap"><table class="data"><thead><tr><th>Test</th><th>History</th><th class="num">Flips</th></tr></thead><tbody>
+      {% for t in flaky_tests %}<tr><td class="name">{{ t.name|e }}</td><td>{{ strip(t.outcomes) }}</td><td class="num">{{ t.flips }}</td></tr>{% endfor %}
+      </tbody></table></div>
+      {% else %}<p class="empty-note">No flaky tests. A test counts as flaky when it fails in two or more separate stretches with passing runs in between, or passes only after a retry.</p>{% endif %}
+    </section>
+    <section class="card card-pad" aria-label="Failing now">
+      <div class="card-head"><h2>Failing now</h2><span class="meta">consecutive failing runs</span></div>
+      {% if failure_streaks %}
+      <div class="table-wrap"><table class="data"><thead><tr><th>Test</th><th class="num">Streak</th><th>Since</th></tr></thead><tbody>
+      {% for t in failure_streaks %}<tr><td class="name">{{ t.name|e }}</td><td class="num"><span class="pill-n">{{ t.streak }}</span></td><td class="meta">{{ t.since }}</td></tr>{% endfor %}
+      </tbody></table></div>
+      {% else %}<p class="empty-note">Nothing is failing in the latest run.</p>{% endif %}
+    </section>
+  </div>
+
+  <section class="card card-pad section" aria-label="Most failing tests">
+    <div class="card-head"><h2>Most failing tests</h2><span class="meta">oldest run on the left</span></div>
+    {% if most_failing %}
+    <div class="table-wrap"><table class="data"><thead><tr><th>Test</th><th>History</th><th class="num">Failures</th><th class="num">Failure rate</th></tr></thead><tbody>
+    {% for t in most_failing %}<tr><td class="name">{{ t.name|e }}</td><td>{{ strip(t.outcomes) }}</td><td class="num">{{ t.failures }} / {{ t.runs }}</td><td class="num">{{ t.failure_rate }}%</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<p class="empty-note">No failures in these runs.</p>{% endif %}
+  </section>
+
+  <div class="grid-2 section">
+    <section class="card card-pad" aria-label="Slowest tests">
+      <div class="card-head"><h2>Slowest tests</h2><span class="meta">average across runs</span></div>
+      {% if slowest_tests %}
+      {%- set top = slowest_tests[0].average or 1 %}
+      <div class="bars">{% for t in slowest_tests %}<div class="bar-row" title="{{ t.name|e }}"><span class="name">{{ t.name|e }}</span><span class="num">{{ '%.3f'|format(t.average) }}s · max {{ '%.3f'|format(t.max) }}s</span><span class="track"><span class="fill" style="display:block; width: {{ '%.2f'|format(t.average * 100 / top) }}%"></span></span></div>{% endfor %}</div>
+      {% else %}<p class="empty-note">No timing data recorded.</p>{% endif %}
+    </section>
+    <section class="card card-pad" aria-label="Runs">
+      <div class="card-head"><h2>Runs</h2><span class="meta">newest first</span></div>
+      <div class="table-wrap"><table class="data"><thead><tr><th>When</th><th class="num">Tests</th><th class="num">Failed</th><th class="num">Errors</th><th class="num">Pass rate</th><th class="num">Time</th></tr></thead><tbody>
+      {% for r in runs|reverse %}<tr><td title="{{ r.source|e }}">{{ r.timestamp }}</td><td class="num">{{ r.total }}</td><td class="num{% if r.failed %} v-fail{% endif %}">{{ r.failed }}</td><td class="num{% if r.error %} v-error{% endif %}">{{ r.error }}</td><td class="num">{{ r.percentage }}%</td><td class="num">{{ '%.1f'|format(r.duration or 0) }}s</td></tr>{% endfor %}
+      </tbody></table></div>
+    </section>
+  </div>
+</div>
+</main>
+<footer class="page">Generated by <a href="https://pypi.org/project/pyrept/">pyrept</a></footer>
+<script>
+(function () {
+  var root = document.documentElement;
+  try { var saved = localStorage.getItem('pyrept-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
+  document.getElementById('theme').addEventListener('click', function () {
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme') === 'dark'
+      : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var next = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('pyrept-theme', next); } catch (e) {}
+  });
+})();
+</script>
+</body>
+</html>

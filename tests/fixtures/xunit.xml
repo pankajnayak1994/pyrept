@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assemblies timestamp="10/07/2026 09:00:00">
+  <assembly name="/src/Shop.Tests.dll" run-date="2026-10-07" run-time="09:00:00" total="4" passed="1" failed="2" skipped="1" time="1.9" errors="0">
+    <errors />
+    <collection total="4" passed="1" failed="2" skipped="1" name="Test collection for Shop.Tests.CartTests" time="1.9">
+      <test name="Shop.Tests.CartTests.AddsItem" type="Shop.Tests.CartTests" method="AddsItem" time="0.0120000" result="Pass">
+        <traits><trait name="Category" value="smoke" /><trait name="Owner" value="cart-team" /></traits>
+      </test>
+      <test name="Shop.Tests.CartTests.ComputesTotal" type="Shop.Tests.CartTests" method="ComputesTotal" time="1.5000000" result="Fail">
+        <failure exception-type="Xunit.Sdk.EqualException">
+          <message><![CDATA[Assert.Equal() Failure: Values differ
+Expected: 85
+Actual:   90]]></message>
+          <stack-trace><![CDATA[   at Shop.Tests.CartTests.ComputesTotal() in /src/CartTests.cs:line 21]]></stack-trace>
+        </failure>
+        <output><![CDATA[computing total]]></output>
+      </test>
+      <test name="Shop.Tests.CartTests.LoadsDb" type="Shop.Tests.CartTests" method="LoadsDb" time="0.3000000" result="Fail">
+        <failure exception-type="System.InvalidOperationException">
+          <message><![CDATA[db down]]></message>
+          <stack-trace><![CDATA[   at Shop.Db.Open()]]></stack-trace>
+        </failure>
+      </test>
+      <test name="Shop.Tests.CartTests.Refund" type="Shop.Tests.CartTests" method="Refund" time="0" result="Skip">
+        <reason><![CDATA[sandbox offline]]></reason>
+      </test>
+    </collection>
+  </assembly>
+</assemblies>

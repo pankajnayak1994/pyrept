@@ -1,0 +1,53 @@
+name: Docs
+
+# Builds the documentation and the live demo report and publishes them to GitHub Pages.
+# One-time setup: Settings -> Pages -> Source: "GitHub Actions".
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # setuptools_scm needs tags for the version
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install
+        run: pip install -e . mkdocs-material
+
+      - name: Build the site
+        run: mkdocs build --strict
+
+      - name: Build the live demo
+        run: python docs/demo/make_demo.py site/demo
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

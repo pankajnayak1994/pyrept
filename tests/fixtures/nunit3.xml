@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<test-run id="0" testcasecount="5" result="Failed" total="5" passed="1" failed="2" inconclusive="0" skipped="2" asserts="3" engine-version="3.16.0" start-time="2026-10-07 09:00:00Z" end-time="2026-10-07 09:00:02Z" duration="2.1">
+  <test-suite type="Assembly" id="0-1001" name="Shop.Tests.dll" fullname="/src/Shop.Tests.dll" result="Failed">
+    <test-suite type="TestFixture" id="0-1002" name="CartTests" fullname="Shop.Tests.CartTests" classname="Shop.Tests.CartTests" result="Failed">
+      <test-case id="0-1003" name="AddsItem" fullname="Shop.Tests.CartTests.AddsItem" methodname="AddsItem" classname="Shop.Tests.CartTests" result="Passed" duration="0.012">
+        <properties><property name="Category" value="smoke" /></properties>
+      </test-case>
+      <test-case id="0-1004" name="ComputesTotal" fullname="Shop.Tests.CartTests.ComputesTotal" methodname="ComputesTotal" classname="Shop.Tests.CartTests" result="Failed" duration="1.5">
+        <failure>
+          <message><![CDATA[  Expected: 85
+  But was:  90
+]]></message>
+          <stack-trace><![CDATA[at Shop.Tests.CartTests.ComputesTotal() in /src/CartTests.cs:line 21]]></stack-trace>
+        </failure>
+        <output><![CDATA[computing total]]></output>
+        <attachments><attachment><filePath>shots/total.png</filePath><description>Screenshot</description></attachment></attachments>
+      </test-case>
+      <test-case id="0-1005" name="LoadsDb" fullname="Shop.Tests.CartTests.LoadsDb" methodname="LoadsDb" classname="Shop.Tests.CartTests" result="Failed" label="Error" duration="0.3">
+        <failure>
+          <message><![CDATA[System.InvalidOperationException : db down]]></message>
+          <stack-trace><![CDATA[at Shop.Db.Open()]]></stack-trace>
+        </failure>
+      </test-case>
+    </test-suite>
+    <test-suite type="TestFixture" id="0-1006" name="PaymentTests" fullname="Shop.Tests.PaymentTests" classname="Shop.Tests.PaymentTests" result="Skipped">
+      <test-case id="0-1007" name="Refund" fullname="Shop.Tests.PaymentTests.Refund" methodname="Refund" classname="Shop.Tests.PaymentTests" result="Skipped" label="Ignored" duration="0">
+        <reason><message><![CDATA[sandbox offline]]></message></reason>
+      </test-case>
+      <test-case id="0-1008" name="Explicit" fullname="Shop.Tests.PaymentTests.Explicit" methodname="Explicit" classname="Shop.Tests.PaymentTests" result="Skipped" label="Explicit" duration="0" />
+    </test-suite>
+  </test-suite>
+</test-run>

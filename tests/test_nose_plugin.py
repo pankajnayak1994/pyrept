@@ -391,3 +391,86 @@ class NoseCommandLineTests(unittest.TestCase):
         result = self._nose2('--junit-report-path=out/j.txt')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('must end with .xml', result.stderr)
+
+
+class NoseSummaryAndGateTests(unittest.TestCase):
+    KNOWN = ('import unittest\n\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n'
+             '    def test_known_bug(self):\n        self.assertEqual(1, 2)\n')
+
+    def setUp(self):
+        import os
+        import shutil
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self._write(self.KNOWN)
+        with open(os.path.join(self.tmp, 'nose2.cfg'), 'w') as fh:
+            fh.write('[unittest]\nplugins = pyrept.html_report\n')
+
+    def _write(self, body):
+        import os
+        with open(os.path.join(self.tmp, 'test_gate_sample.py'), 'w') as fh:
+            fh.write(body)
+
+    def _nose2(self, *args, **env):
+        import os
+        import subprocess
+        return subprocess.run([sys.executable, '-m', 'nose2', '--html-report'] + list(args), cwd=self.tmp,
+                              capture_output=True, text=True, check=False, env=dict(os.environ, **env))
+
+    def test_markdown_and_github_summary(self):
+        import os
+        summary = os.path.join(self.tmp, 'gh.md')
+        result = self._nose2('--markdown-report-path=out/s.md', '--pyrept-github-summary',
+                             GITHUB_STEP_SUMMARY=summary)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        for path in (os.path.join(self.tmp, 'out', 's.md'), summary):
+            with open(path, encoding='utf-8') as fh:
+                self.assertIn('❌ Test Report: 1 failed', fh.read())
+
+    def test_markdown_path_must_end_in_md(self):
+        result = self._nose2('--markdown-report-path=out/s.txt')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('must end with .md', result.stderr)
+
+    def test_ignore_known_failures_and_fail_under(self):
+        self.assertEqual(self._nose2().returncode, 1)
+        known = self._nose2('--baseline-report-path=report.json', '--pyrept-ignore-known-failures')
+        self.assertEqual(known.returncode, 0, known.stderr)
+        self.assertIn('pyrept: 1 known failure ignored', known.stderr)
+        floor = self._nose2('--baseline-report-path=report.json', '--pyrept-ignore-known-failures',
+                            '--pyrept-fail-under=60')
+        self.assertEqual(floor.returncode, 1, floor.stderr)
+        self.assertIn('pass rate 50.0% is below fail-under=60', floor.stderr)
+        no_baseline = self._nose2('--pyrept-ignore-known-failures')
+        self.assertEqual(no_baseline.returncode, 1)
+        self.assertIn('needs a baseline-report-path report', no_baseline.stderr)
+
+        self._write(self.KNOWN + '    def test_new_bug(self):\n        raise RuntimeError("new")\n')
+        new = self._nose2('--baseline-report-path=report.json', '--pyrept-ignore-known-failures')
+        self.assertEqual(new.returncode, 1, new.stderr)
+
+    def test_config_file_keys(self):
+        import os
+        self._nose2()  # baseline with the known failure
+        with open(os.path.join(self.tmp, 'nose2.cfg'), 'a') as fh:
+            fh.write('[html-report]\nbaseline-report-path = report.json\nignore-known-failures = true\n'
+                     'fail-under = 10\nmarkdown-report-path = cfg/s.md\n')
+        result = self._nose2()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, 'cfg', 's.md')))
+
+    def test_without_gates_nose2_decides(self):
+        import os
+        with open(os.path.join(self.tmp, 'test_gate_sample.py'), 'w') as fh:
+            fh.write('import unittest\n\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n')
+        self.assertEqual(self._nose2().returncode, 0)
+
+
+class MissingNose2Tests(unittest.TestCase):
+    def test_helpful_error_without_nose2(self):
+        import subprocess
+        code = ('import sys; sys.modules["nose2"] = None\n'
+                'try:\n    import pyrept.html_report\nexcept ImportError as exc:\n    print(exc)\n')
+        out = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, check=True).stdout
+        self.assertIn('pip install "pyrept[nose2]"', out)

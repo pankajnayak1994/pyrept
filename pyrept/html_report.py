@@ -9,10 +9,14 @@ import time
 import traceback
 import unittest
 
-from nose2.events import Plugin
-from nose2.result import ERROR, FAIL, PASS, SKIP, SUBTEST
+try:
+    from nose2.events import Plugin
+    from nose2.result import ERROR, FAIL, PASS, SKIP, SUBTEST
+except ImportError as exc:  # nose2 is an optional extra
+    raise ImportError('The pyrept nose2 plugin needs nose2: pip install "pyrept[nose2]"') from exc
 
 from .compare import load_baseline, summary_line
+from .summary import evaluate_gates, parse_fail_under
 from .report import (
     DEFAULT_HTML_REPORT_PATH,
     DEFAULT_JSON_REPORT_PATH,
@@ -34,7 +38,10 @@ _PATH_OPTIONS = {
     'junit-report-path': ('.xml', 'junit_report_path', 'pyrept: also write a JUnit XML report'),
     'baseline-report-path': ('.json', 'baseline_report_path',
                              'pyrept: compare with an earlier pyrept JSON report'),
+    'markdown-report-path': ('.md', 'markdown_report_path', 'pyrept: also write a Markdown summary'),
 }
+_GATE_OPTION_NAMES = {'fail_under': 'fail-under', 'ignore_known_failures': 'ignore-known-failures',
+                      'baseline': 'baseline-report-path'}
 
 
 def _checked(option, path):
@@ -79,6 +86,7 @@ class HTMLReporter(Plugin):
             'json-report-path': DEFAULT_JSON_REPORT_PATH,
             'junit-report-path': '',
             'baseline-report-path': '',
+            'markdown-report-path': '',
         }
         self._config = {'template': os.path.realpath(
             self.config.as_str('template', default='') or DEFAULT_TEMPLATE_PATH)}
@@ -87,6 +95,25 @@ class HTMLReporter(Plugin):
             self._config[key] = os.path.realpath(path) if path else None
             # Registering the option lets nose2's own argument parser accept it.
             self.addArgument(self._path_setter(option), None, option, help_text)
+        self._config['github_summary'] = self.config.as_bool('github-summary', default=False)
+        self._config['ignore_known_failures'] = self.config.as_bool('ignore-known-failures', default=False)
+        self._config['fail_under'] = parse_fail_under(self.config.as_str('fail-under', default=''))
+        self.addFlag(self._enable('github_summary'), None, 'pyrept-github-summary',
+                     'pyrept: append the Markdown summary to the GitHub Actions job summary')
+        self.addFlag(self._enable('ignore_known_failures'), None, 'pyrept-ignore-known-failures',
+                     'pyrept: succeed when every failing test was already failing in the baseline')
+        self.addArgument(self._set_fail_under, None, 'pyrept-fail-under',
+                         'pyrept: fail the run when the pass rate is below this percentage')
+        self._context = None
+        self._gate = None
+
+    def _enable(self, key):
+        def enable(*_):
+            self._config[key] = True
+        return enable
+
+    def _set_fail_under(self, values):
+        self._config['fail_under'] = parse_fail_under(values[0])
 
     def _path_setter(self, option):
         key = _PATH_OPTIONS[option][1]
@@ -155,15 +182,32 @@ class HTMLReporter(Plugin):
             metadata=metadata,
         )
 
+    def _build_context(self):
+        # Built once all tests have run: nose2 asks wasSuccessful() before afterSummaryReport.
+        if self._context is None:
+            import nose2
+            self._context = build_context(self.summary_stats, self.test_results,
+                                          environment={'Framework': 'nose2 %s' % getattr(nose2, '__version__', '')},
+                                          baseline=load_baseline(self._config['baseline_report_path']))
+            if self._config['fail_under'] is not None or self._config['ignore_known_failures']:
+                self._gate = evaluate_gates(self._context, fail_under=self._config['fail_under'],
+                                            ignore_known_failures=self._config['ignore_known_failures'],
+                                            option_names=_GATE_OPTION_NAMES)
+        return self._context
+
+    def wasSuccessful(self, event):
+        """Apply ``fail-under`` / ``ignore-known-failures`` to nose2's own verdict."""
+        if self._config['fail_under'] is None and not self._config['ignore_known_failures']:
+            return
+        self._build_context()
+        event.success = self._gate.successful(event.success is not False)
+
     def afterSummaryReport(self, event):
         """
         After everything is done, generate the report
         """
         logger.info('Generating HTML report...')
-        import nose2
-        context = build_context(self.summary_stats, self.test_results,
-                                environment={'Framework': 'nose2 %s' % getattr(nose2, '__version__', '')},
-                                baseline=load_baseline(self._config['baseline_report_path']))
+        context = self._build_context()
         self.summary_stats['percentage'] = context['test_summary']['percentage']
         write_reports(
             context,
@@ -171,10 +215,13 @@ class HTMLReporter(Plugin):
             json_path=self._config['json_report_path'],
             template_path=self._config['template'],
             junit_path=self._config['junit_report_path'],
+            markdown_path=self._config['markdown_report_path'],
+            github_summary=self._config['github_summary'],
         )
-        line = summary_line(context['comparison'])
+        lines = [summary_line(context['comparison'])] + (self._gate.messages if self._gate else [])
         stream = getattr(event, 'stream', None)
-        if line and stream is not None:
-            stream.writeln('pyrept: %s' % line)
-        elif line:
-            logger.info('pyrept: %s', line)
+        for line in filter(None, lines):
+            if stream is not None:
+                stream.writeln('pyrept: %s' % line)
+            else:
+                logger.info('pyrept: %s', line)

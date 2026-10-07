@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot generator="Robot 7.5 (Python 3.14.6 on darwin)" generated="2026-10-07T09:18:34.763604" rpa="false" schemaversion="5">
+<suite id="s1" name="Suite" source="/home/ci/shop/suite">
+<suite id="s1-s1" name="Checkout" source="/home/ci/shop/suite/checkout.robot">
+<test id="s1-s1-t1" name="Pay With Card" line="2">
+<kw name="Sleep" owner="BuiltIn">
+<msg time="2026-10-07T09:18:34.878313" level="INFO">Slept 100 milliseconds.</msg>
+<arg>0.1s</arg>
+<doc>Pauses execution for the given time.</doc>
+<status status="PASS" start="2026-10-07T09:18:34.777600" elapsed="0.100792"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${True}</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-10-07T09:18:34.878515" elapsed="0.000211"/>
+</kw>
+<status status="PASS" start="2026-10-07T09:18:34.777401" elapsed="0.101395"/>
+</test>
+<status status="PASS" start="2026-10-07T09:18:34.777145" elapsed="0.101856"/>
+</suite>
+<suite id="s1-s2" name="Login" source="/home/ci/shop/suite/login.robot">
+<test id="s1-s2-t1" name="Valid Login" line="5">
+<kw name="Log" owner="BuiltIn">
+<msg time="2026-10-07T09:18:34.880216" level="INFO">signing in</msg>
+<arg>signing in</arg>
+<doc>Logs the given message with the given level.</doc>
+<status status="PASS" start="2026-10-07T09:18:34.880086" elapsed="0.000157"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>1</arg>
+<arg>1</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-10-07T09:18:34.880326" elapsed="0.000114"/>
+</kw>
+<doc>User can sign in</doc>
+<tag>login</tag>
+<tag>smoke</tag>
+<status status="PASS" start="2026-10-07T09:18:34.879878" elapsed="0.000614"/>
+</test>
+<test id="s1-s2-t2" name="Wrong Password" line="11">
+<kw name="Should Be Equal" owner="BuiltIn">
+<msg time="2026-10-07T09:18:34.880916" level="FAIL">expected banner: welcome != error</msg>
+<arg>welcome</arg>
+<arg>error</arg>
+<arg>msg=expected banner</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="FAIL" start="2026-10-07T09:18:34.880721" elapsed="0.000273">expected banner: welcome != error</status>
+</kw>
+<tag>login</tag>
+<status status="FAIL" start="2026-10-07T09:18:34.880570" elapsed="0.000502">expected banner: welcome != error</status>
+</test>
+<test id="s1-s2-t3" name="Not Ready" line="15">
+<kw name="Skip" owner="BuiltIn">
+<msg time="2026-10-07T09:18:34.881374" level="SKIP">feature flag off</msg>
+<arg>feature flag off</arg>
+<doc>Stops the current test or task and sets its status to SKIP.</doc>
+<status status="SKIP" start="2026-10-07T09:18:34.881248" elapsed="0.000165">feature flag off</status>
+</kw>
+<status status="SKIP" start="2026-10-07T09:18:34.881143" elapsed="0.000326">feature flag off</status>
+</test>
+<doc>Login tests</doc>
+<status status="FAIL" start="2026-10-07T09:18:34.879164" elapsed="0.002406"/>
+</suite>
+<status status="FAIL" start="2026-10-07T09:18:34.764522" elapsed="0.117218"/>
+</suite>
+<statistics>
+<total>
+<stat pass="2" fail="1" skip="1">All Tests</stat>
+</total>
+<tag>
+<stat pass="1" fail="1" skip="0">login</stat>
+<stat pass="1" fail="0" skip="0">smoke</stat>
+</tag>
+<suite>
+<stat name="Suite" id="s1" pass="2" fail="1" skip="1">Suite</stat>
+<stat name="Checkout" id="s1-s1" pass="1" fail="0" skip="0">Suite.Checkout</stat>
+<stat name="Login" id="s1-s2" pass="1" fail="1" skip="1">Suite.Login</stat>
+</suite>
+</statistics>
+<errors>
+</errors>
+</robot>

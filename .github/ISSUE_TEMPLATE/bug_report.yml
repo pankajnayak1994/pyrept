@@ -1,0 +1,42 @@
+name: Bug report
+description: Something in a report, an integration or a converter is wrong.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you get instead? Screenshots of the report help.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: The command you ran, and a minimal test file or input report if you can share one.
+      render: shell
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - pytest plugin
+        - unittest runner
+        - nose2 plugin
+        - behave formatter
+        - pyrept convert
+        - pyrept history / summary
+        - GitHub Action
+        - HTML report
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      placeholder: pyrept 1.3.0, Python 3.12, pytest 8.3, Ubuntu 24.04
+    validations:
+      required: true

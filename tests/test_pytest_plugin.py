@@ -490,3 +490,335 @@ def test_unreadable_baseline_does_not_fail_the_run(pytester):
     result = _run(pytester, '--pyrept-baseline=broken.json')
     assert result.ret == 0
     assert _load(pytester.path / 'report.json')['comparison'] is None
+
+
+KNOWN_FAILURE_TESTS = '''
+def test_ok():
+    pass
+
+def test_known_bug():
+    assert 1 == 2
+'''
+
+
+def test_markdown_summary_and_github_job_summary(pytester, monkeypatch):
+    pytester.makepyfile(SAMPLE_TESTS)
+    summary = pytester.path / 'step_summary.md'
+    monkeypatch.setenv('GITHUB_STEP_SUMMARY', str(summary))
+    result = _run(pytester, '--pyrept-markdown=out/summary.md', '--pyrept-github-summary')
+    result.stdout.fnmatch_lines(['*pyrept Markdown summary: *summary.md*'])
+    markdown = (pytester.path / 'out' / 'summary.md').read_text(encoding='utf-8')
+    assert '### ❌ Test Report: 1 failed, 1 error' in markdown
+    assert '<code>test_generates' not in markdown  # names come from the module under test
+    assert 'test_fail' in markdown and 'fixture exploded' in markdown
+    assert summary.read_text(encoding='utf-8') == markdown + '\n'
+    assert (pytester.path / 'report.html').exists()  # --pyrept-markdown turns reporting on
+
+
+def test_github_summary_outside_github_actions_is_skipped(pytester):
+    pytester.makepyfile('def test_ok():\n    pass\n')
+    result = _run(pytester, '--pyrept-github-summary')
+    assert result.ret == 0
+    assert (pytester.path / 'report.json').exists()
+
+
+def test_fail_under(pytester):
+    pytester.makepyfile(KNOWN_FAILURE_TESTS)
+    result = _run(pytester, '--pyrept-fail-under=40')
+    assert result.ret == 1  # a test failed: the threshold never turns that into a pass
+    pytester.makepyfile('def test_ok():\n    pass\n\ndef test_skip():\n    import pytest; pytest.skip()\n')
+    assert _run(pytester, '--pyrept-fail-under=100').ret == 0
+
+
+def test_fail_under_limits_known_failures(pytester):
+    pytester.makepyfile(KNOWN_FAILURE_TESTS)
+    _run(pytester, '--pyrept')
+    args = ('--pyrept-baseline=report.json', '--pyrept-ignore-known-failures')
+    assert _run(pytester, *args, '--pyrept-fail-under=40').ret == 0  # 50% pass rate, known failure
+    result = _run(pytester, *args, '--pyrept-fail-under=60')
+    assert result.ret == 1
+    result.stdout.fnmatch_lines(['*pyrept: pass rate 50.0% is below --pyrept-fail-under=60*'])
+
+
+def test_fail_under_ignores_runs_where_everything_was_skipped(pytester):
+    pytester.makepyfile('import pytest\n\ndef test_skip():\n    pytest.skip("later")\n')
+    result = _run(pytester, '--pyrept-fail-under=90')
+    assert result.ret == 0
+    result.stdout.fnmatch_lines(['*no tests were executed, so --pyrept-fail-under was not checked*'])
+
+
+def test_invalid_fail_under_is_a_usage_error(pytester):
+    pytester.makepyfile('def test_ok():\n    pass\n')
+    result = _run(pytester, '--pyrept-fail-under=lots')
+    assert result.ret == pytest.ExitCode.USAGE_ERROR
+    result.stderr.fnmatch_lines(['*pyrept: fail-under must be a number between 0 and 100*'])
+
+
+def test_ignore_known_failures(pytester):
+    pytester.makepyfile(KNOWN_FAILURE_TESTS)
+    assert _run(pytester, '--pyrept').ret == 1  # first run: writes the baseline
+    result = _run(pytester, '--pyrept-baseline=report.json', '--pyrept-ignore-known-failures')
+    assert result.ret == 0
+    result.stdout.fnmatch_lines(['*pyrept: 1 known failure ignored*'])
+
+    pytester.makepyfile(KNOWN_FAILURE_TESTS + '\ndef test_new_bug():\n    assert False\n')
+    result = _run(pytester, '--pyrept-baseline=report.json', '--pyrept-ignore-known-failures')
+    assert result.ret == 1
+    result.stdout.fnmatch_lines(['*1 new failure, so --pyrept-ignore-known-failures does not apply*'])
+
+
+def test_ignore_known_failures_needs_a_baseline(pytester):
+    pytester.makepyfile(KNOWN_FAILURE_TESTS)
+    result = _run(pytester, '--pyrept-ignore-known-failures')
+    assert result.ret == 1
+    result.stdout.fnmatch_lines(['*needs a --pyrept-baseline report*'])
+
+
+def test_ignore_known_failures_keeps_failures_from_other_plugins(pytester):
+    pytester.makepyfile(KNOWN_FAILURE_TESTS)
+    _run(pytester, '--pyrept')
+    # Like pytest-cov's --cov-fail-under: another plugin fails the run by counting a failure.
+    pytester.makeconftest('''
+import pytest
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_sessionfinish(session):
+    session.testsfailed += 1
+''')
+    result = _run(pytester, '--pyrept-baseline=report.json', '--pyrept-ignore-known-failures')
+    assert result.ret == 1
+    result.stdout.fnmatch_lines(['*another plugin also failed the run*'])
+
+
+def test_ignore_known_failures_never_hides_collection_errors(pytester):
+    pytester.makepyfile(KNOWN_FAILURE_TESTS)
+    _run(pytester, '--pyrept')
+    pytester.makepyfile(test_broken='import does_not_exist\n')
+    result = _run(pytester, '--pyrept-baseline=report.json', '--pyrept-ignore-known-failures')
+    assert result.ret == pytest.ExitCode.INTERRUPTED
+
+
+def test_summary_and_gate_ini_options(pytester):
+    pytester.makepyfile(KNOWN_FAILURE_TESTS)
+    pytester.makeini('''
+[pytest]
+pyrept = true
+pyrept_json = reports/report.json
+pyrept_markdown = reports/summary.md
+pyrept_baseline = reports/report.json
+pyrept_fail_under = 10
+pyrept_ignore_known_failures = true
+''')
+    assert _run(pytester).ret == 1  # no baseline yet
+    assert (pytester.path / 'reports' / 'summary.md').exists()
+    assert _run(pytester).ret == 0  # known failure, 50% >= 10%
+
+    pytester.makeini('''
+[pytest]
+pyrept = true
+pyrept_fail_under = 80
+''')
+    assert _run(pytester).ret == 1
+
+
+def test_markdown_path_alone_in_ini_does_not_enable(pytester):
+    pytester.makepyfile('def test_ok():\n    pass\n')
+    pytester.makeini('[pytest]\npyrept_markdown = summary.md\npyrept_fail_under = 99\n')
+    _run(pytester)
+    assert not (pytester.path / 'summary.md').exists()
+    assert not (pytester.path / 'report.html').exists()
+
+
+def test_plugin_hooks_add_environment_attachments_and_context(pytester):
+    pytester.makeconftest('''
+from pyrept import make_attachment
+
+def pytest_pyrept_environment(config):
+    return {'Build': '1842'}
+
+def pytest_pyrept_attachments(item, report):
+    if report.when == 'call' and report.failed:
+        return [make_attachment('server.log', 'text/plain', text='500 on /pay')]
+
+def pytest_pyrept_context(config, context):
+    context['test_report_title'] = 'Changed by a hook'
+''')
+    pytester.makepyfile('def test_ok():\n    pass\n\ndef test_bad():\n    assert False\n')
+    _run(pytester, '--pyrept')
+    data = _load(pytester.path / 'report.json')
+    assert data['environment']['Build'] == '1842'
+    assert data['test_report_title'] == 'Changed by a hook'
+    results = {r['name'].split('::')[-1]: r for r in data['test_results']}
+    attachments = results['test_bad']['metadata']['attachments']
+    assert [a['text'] for a in attachments if a['name'] == 'server.log'] == ['500 on /pay']
+    assert 'attachments' not in results['test_ok']['metadata']
+
+
+def test_hooks_are_optional(pytester):
+    pytester.makepyfile('def test_ok():\n    pass\n')
+    assert _run(pytester, '--pyrept').ret == 0
+
+
+FAKE_BROWSER = '''
+import os
+import pytest
+
+
+class FakePage:
+    def __init__(self):
+        self.handlers = {}
+
+    def on(self, event, handler):
+        self.handlers.setdefault(event, []).append(handler)
+
+    def remove_listener(self, event, handler):
+        self.handlers[event].remove(handler)
+
+    def emit(self, event, value):
+        for handler in list(self.handlers.get(event, [])):
+            handler(value)
+
+    def screenshot(self, full_page=True):
+        return b"\\x89PNG"
+
+
+class Message:
+    def __init__(self, type_, text):
+        self.type, self.text = type_, text
+
+
+@pytest.fixture
+def output_path(tmp_path_factory, request):
+    return str(tmp_path_factory.getbasetemp() / "test-results" / request.node.name)
+
+
+@pytest.fixture
+def page(output_path, request):
+    page = FakePage()
+    yield page
+    assert page.handlers.get("console") == [], "listeners must be removed after the test"
+    failed = getattr(request.node, "_pyrept_failed", False)
+    if failed:  # like pytest-playwright with --tracing/--video retain-on-failure
+        os.makedirs(output_path, exist_ok=True)
+        for name in ("trace.zip", "video.webm", "test-failed-1.png"):
+            open(os.path.join(output_path, name), "wb").close()
+'''
+
+
+def test_browser_console_and_playwright_artifacts(pytester):
+    pytester.makeconftest(FAKE_BROWSER)
+    pytester.makepyfile('''
+from conftest import Message
+
+def test_checkout(page):
+    page.emit("console", Message("error", "Uncaught TypeError: x is undefined"))
+    page.emit("pageerror", "ReferenceError: y")
+    assert False
+
+def test_fine(page):
+    page.emit("console", Message("log", "hello"))
+''')
+    result = _run(pytester, '--pyrept-html=reports/report.html', '--pyrept-json=reports/report.json')
+    assert result.ret == 1
+    results = {r['name'].split('::')[-1]: r for r in _load(pytester.path / 'reports' / 'report.json')['test_results']}
+    attachments = {a['name']: a for a in results['test_checkout']['metadata']['attachments']}
+    assert attachments['Browser console']['text'] == (
+        '[error] Uncaught TypeError: x is undefined\n[pageerror] ReferenceError: y')
+    assert 'Screenshot on failure' in attachments
+    trace = attachments['Playwright trace (open at https://trace.playwright.dev)']
+    assert trace['path'].endswith('test-results/test_checkout/trace.zip')
+    assert not trace['path'].startswith('/')  # relative to the HTML report
+    assert attachments['Video']['content_type'] == 'video/webm'
+    assert 'attachments' not in results['test_fine']['metadata']
+
+
+def test_no_screenshots_option_disables_browser_evidence(pytester):
+    pytester.makeconftest(FAKE_BROWSER)
+    pytester.makepyfile('''
+from conftest import Message
+
+def test_checkout(page):
+    page.emit("console", Message("error", "boom"))
+    assert False
+''')
+    _run(pytester, '--pyrept', '--pyrept-no-screenshots')
+    result = _load(pytester.path / 'report.json')['test_results'][0]
+    assert 'attachments' not in result['metadata']
+
+
+def test_pytest_bdd_scenarios(pytester):
+    pytest.importorskip('pytest_bdd')
+    pytester.makefile('.feature', checkout='''
+Feature: Checkout
+    @smoke
+    Scenario: Pay with card
+        Given a cart with 2 items
+        When I pay with a declined card
+        Then I see the confirmation page
+
+    Scenario: Empty cart
+        Given an empty cart
+        Then the pay button is disabled
+''')
+    pytester.makepyfile(test_checkout='''
+from pytest_bdd import given, scenarios, then, when
+
+scenarios("checkout.feature")
+
+@given("a cart with 2 items")
+def cart():
+    pass
+
+@when("I pay with a declined card")
+def pay():
+    raise RuntimeError("card declined")
+
+@then("I see the confirmation page")
+def confirmation():
+    pass
+
+@given("an empty cart")
+def empty():
+    pass
+
+@then("the pay button is disabled")
+def disabled():
+    pass
+''')
+    _run(pytester, '--pyrept')
+    results = {r['name'].split('::')[-1]: r for r in _load(pytester.path / 'report.json')['test_results']}
+    paid = results['test_pay_with_card']
+    assert paid['result'] == 'failed'
+    assert paid['description'].splitlines() == [
+        'Feature: Checkout', 'Scenario: Pay with card',
+        '  Given a cart with 2 items  [passed]',
+        '  When I pay with a declined card  [failed]',
+        '  Then I see the confirmation page  [skipped]']
+    assert 'smoke' in paid['metadata']['tags']
+    assert results['test_empty_cart']['description'].endswith('Then the pay button is disabled  [passed]')
+
+
+@pytest.mark.skipif(not _has_plugin('xdist'), reason='pytest-xdist not installed')
+def test_xdist_keeps_console_artifacts_and_hook_attachments(pytester):
+    pytester.makeconftest(FAKE_BROWSER + '''
+from pyrept import make_attachment
+
+def pytest_pyrept_attachments(item, report):
+    if report.when == "call" and report.failed:
+        return [make_attachment("worker.log", "text/plain", text="from a worker")]
+''')
+    pytester.makepyfile('''
+from conftest import Message
+
+def test_checkout(page):
+    page.emit("console", Message("error", "boom"))
+    assert False
+
+def test_other(page):
+    pass
+''')
+    _run(pytester, '--pyrept', '-n', '2')
+    results = {r['name'].split('::')[-1]: r for r in _load(pytester.path / 'report.json')['test_results']}
+    names = [a['name'] for a in results['test_checkout']['metadata']['attachments']]
+    assert names == ['Screenshot on failure', 'Browser console', 'worker.log',
+                     'Playwright trace (open at https://trace.playwright.dev)', 'Video']

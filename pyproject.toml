@@ -14,7 +14,6 @@ authors = [
 ]
 dependencies = [
     "jinja2",
-    "nose2",
 ]
 keywords = [
     "pytest",
@@ -75,6 +74,7 @@ classifiers = [
 
 [project.optional-dependencies]
 behave = ["behave>=1.2.6"]
+nose2 = ["nose2"]
 playwright = ["pytest-playwright"]
 
 [project.urls]
@@ -93,10 +93,10 @@ pyrept = "pyrept.pytest_plugin"
 include-package-data = false
 
 [tool.setuptools.packages.find]
-exclude = ["tests", "tests.*", "build", "build.*"]
+include = ["pyrept", "pyrept.*"]
 
 [tool.setuptools.package-data]
-pyrept = ["templates/report.html"]
+pyrept = ["templates/*.html", "templates/*.css"]
 
 [tool.setuptools_scm]
 

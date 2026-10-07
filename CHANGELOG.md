@@ -1,6 +1,31 @@
 # Changelog
 
-## Unreleased (1.1.0)
+## Unreleased (1.3.0)
+
+### Added
+- **GitHub job summaries and Markdown summaries** from every integration: `--pyrept-markdown` / `--pyrept-github-summary` (pytest, unittest), `markdown-report-path` / `github-summary` (nose2), `pyrept_markdown` / `pyrept_github_summary` (behave), `--markdown` / `--github-summary` (convert). Output stays far below GitHub's 1 MiB limit.
+- **`pyrept summary report.json`**: print or publish the Markdown summary of any pyrept report and apply quality gates to it.
+- **GitHub Action** (`uses: pankajnayak1994/pyrept@...`): job summary, an always-up-to-date pull request comment, quality gates, outputs, and `convert-from` for reports from any language.
+- **Quality gates**: `fail-under` (minimum pass rate) and `ignore-known-failures` (fail only on tests that did not fail in the baseline) for pytest, unittest, nose2, `pyrept convert` and `pyrept summary`. With pytest, failures from other plugins (such as `--cov-fail-under`) and collection errors are never hidden.
+- **Common failure causes**: failures sharing an error message are grouped in the HTML report, the Markdown summary and the JSON report (`failure_groups`).
+- **`pyrept history`**: pass-rate trends, outcomes and durations per run, flaky tests (failing in separate stretches, or passing after a retry), failure streaks, most failing and slowest tests across many JSON reports.
+- **Converters**: .NET TRX (including data-driven rows and result files), NUnit 3 and 2, xUnit.net v2, Robot Framework 3.x to 7.x, TAP 12 to 14 (plans, SKIP/TODO, YAML diagnostics, bail out), Allure results (retries folded), pytest-json-report, and pyrept JSON (merge shards).
+- **Notifications** to Slack, Microsoft Teams and any webhook, configured with `PYREPT_*_WEBHOOK_URL` and `PYREPT_NOTIFY_ON`; webhook URLs are never logged and delivery failures never fail the run. `PYREPT_REPORT_URL` links the published report.
+- **pytest**: pytest-bdd scenarios show the feature, scenario and each step's status; failing Playwright tests get the browser console output and links to pytest-playwright traces and videos; new hooks `pytest_pyrept_environment`, `pytest_pyrept_attachments` and `pytest_pyrept_context`.
+- **Branding**: `PYREPT_LOGO` and `PYREPT_ACCENT_COLOR`, applied to the HTML only.
+- Documentation site with a live demo report (`mkdocs.yml`, `.github/workflows/docs.yml`), `CONTRIBUTING.md`, issue templates and the `pytest-pyrept` alias package (`packaging/pytest-pyrept`).
+
+### Changed
+- **New HTML report design**: run verdict header with pass-rate ring, outcome bar and clickable counts; a test map with one square per test; test names split into path and name; per-test duration bars; sort by status, name or duration; `j`/`k` keyboard navigation; filters kept in the URL (`#failed`, `#skipped`, ...); print-friendly output.
+- **nose2 is now an optional extra** (`pip install "pyrept[nose2]"`); `jinja2` is the only required dependency.
+- Templates are loaded through a Jinja2 environment: custom templates can `{% include '_theme.css' %}` and use the `split_test_name` filter.
+- JUnit XML `message` attributes no longer contain ANSI colour codes.
+- Packaging: `setup.py` and `setup.cfg` removed; setuptools 64 or newer builds the package.
+
+### Fixed
+- Makefile `uninstall` target used the package's old name.
+
+## 1.1.0 and 1.2.0
 
 ### Added
 - **pytest** plugin: `pytest --pyrept`, `--pyrept-html`, `--pyrept-json`, `--pyrept-title`, and the `pyrept` / `pyrept_html` / `pyrept_json` ini options. Registered via the `pytest11` entry point and off unless enabled.

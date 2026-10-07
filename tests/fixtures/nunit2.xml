@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<test-results name="Shop.Tests.dll" total="4" errors="1" failures="1" not-run="1" ignored="1" date="2026-10-07" time="09:00:00">
+  <test-suite type="Assembly" name="Shop.Tests.dll" executed="True" result="Failure" success="False" time="1.6">
+    <results>
+      <test-suite type="TestFixture" name="CartTests" executed="True" result="Failure" success="False" time="1.6">
+        <categories><category name="cart" /></categories>
+        <results>
+          <test-case name="Shop.Tests.CartTests.AddsItem" executed="True" result="Success" success="True" time="0.012" asserts="1">
+            <categories><category name="smoke" /></categories>
+          </test-case>
+          <test-case name="Shop.Tests.CartTests.ComputesTotal" executed="True" result="Failure" success="False" time="1.500" asserts="1">
+            <failure><message><![CDATA[Expected: 85 But was: 90]]></message><stack-trace><![CDATA[at CartTests.ComputesTotal()]]></stack-trace></failure>
+          </test-case>
+          <test-case name="Shop.Tests.CartTests.LoadsDb" executed="True" result="Error" success="False" time="0.100">
+            <failure><message><![CDATA[System.InvalidOperationException : db down]]></message></failure>
+          </test-case>
+          <test-case name="Shop.Tests.CartTests.Refund" executed="False" result="Ignored">
+            <reason><message><![CDATA[sandbox offline]]></message></reason>
+          </test-case>
+        </results>
+      </test-suite>
+    </results>
+  </test-suite>
+</test-results>

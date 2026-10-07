@@ -1,0 +1,1 @@
+WARNING  root:test_shop.py:15 price feed slow
