@@ -2,7 +2,7 @@
 
 ## GitHub Action
 
-The pyrept action adds the result to the job summary and keeps one comment on the pull request up to date.
+The **pyrept** action ([GitHub Marketplace](https://github.com/marketplace?type=actions&query=pyrept)) adds the result to the job summary and keeps one comment on the pull request up to date.
 
 ```yaml
 permissions:
@@ -56,7 +56,7 @@ Any language works through `convert-from`:
 
 Outputs: `total`, `passed`, `failed`, `errors`, `skipped`, `pass-rate` and `new-failures`.
 
-`@v1` always points to the newest 1.x release; pin an exact release such as `@v1.3.0` if you prefer.
+`@v1` always points to the newest 1.x release; pin an exact release such as `@v1.3.3` if you prefer.
 
 Without the action, `pytest --pyrept-github-summary` (or `pyrept summary report.json --github-summary`) writes the same job summary.
 

@@ -1,14 +1,22 @@
 # Changelog
 
-## Unreleased
+## 1.3.3
+
+### Changed
+- The GitHub Action is named **pyrept** (it was "pyrept test report"), on the GitHub Marketplace too.
+
+### Fixed
+- The release workflow read the moving `v1` tag as a version, which uploaded a bogus `pyrept 1` to PyPI next to 1.3.1. Builds now take the version from the release tag, `v1` moves only after the upload, and the next version is computed from full `vX.Y.Z` tags only. A version tag can be re-published by running the workflow by hand.
+
+Version 1.3.2 was not released.
+
+## 1.3.1
 
 ### Changed
 - Releases are fully automated: each merged pull request also moves the `v1` tag for the GitHub Action, creates the GitHub release and publishes the `pytest-pyrept` alias package. `[SKIP]` titles or the `skip-release` label merge without a release.
-- The GitHub Action is tested on every pull request (`.github/workflows/test-action.yml`), and Dependabot keeps the workflows' actions up to date.
-- Examples use `pankajnayak1994/pyrept@v1` instead of `@master`.
 - A release published by hand in the GitHub UI (for the Marketplace) is uploaded to PyPI automatically.
-- Fixed: the release workflow read the moving `v1` tag as a version, which uploaded a bogus `pyrept 1` to PyPI instead of 1.3.1. Builds now take the version from the release tag, `v1` moves only after the upload, and the next version is computed from full `vX.Y.Z` tags only. A version tag can be re-published by running the workflow by hand.
-- The action self-test workflow is now `test-action.yml`, so the repository has a single `action.yml` (a Marketplace requirement).
+- The GitHub Action is listed on the GitHub Marketplace and tested on every pull request (`.github/workflows/test-action.yml`); Dependabot keeps the workflows' actions up to date.
+- Examples use `pankajnayak1994/pyrept@v1` instead of `@master`.
 
 ## 1.3.0
 
