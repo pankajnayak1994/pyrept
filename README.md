@@ -6,8 +6,8 @@
 
 [![Tests](https://github.com/pankajnayak1994/pyrept/actions/workflows/codecov.yml/badge.svg)](https://github.com/pankajnayak1994/pyrept/actions/workflows/codecov.yml)
 [![codecov](https://codecov.io/gh/pankajnayak1994/pyrept/graph/badge.svg?token=M0KTUAOO4V)](https://codecov.io/gh/pankajnayak1994/pyrept)
-[![PyPI](https://img.shields.io/pypi/v/pyrept)](https://pypi.org/project/pyrept/)
-[![Python versions](https://img.shields.io/pypi/pyversions/pyrept)](https://pypi.org/project/pyrept/)
+[![PyPI](https://img.shields.io/pypi/v/pyrept?cacheSeconds=3600)](https://pypi.org/project/pyrept/)
+[![Python versions](https://img.shields.io/pypi/pyversions/pyrept?cacheSeconds=3600)](https://pypi.org/project/pyrept/)
 [![Downloads](https://static.pepy.tech/badge/pyrept/month)](https://pepy.tech/project/pyrept)
 [![License: MIT](https://img.shields.io/pypi/l/pyrept)](https://github.com/pankajnayak1994/pyrept/blob/master/LICENSE)
 [![Docs](https://img.shields.io/badge/docs-live%20demo-4f46e5)](https://pankajnayak1994.github.io/pyrept/)
