@@ -3,18 +3,14 @@
 [![Tests](https://github.com/pankajnayak1994/pyrept/actions/workflows/codecov.yml/badge.svg)](https://github.com/pankajnayak1994/pyrept/actions/workflows/codecov.yml)
 [![codecov](https://codecov.io/gh/pankajnayak1994/pyrept/graph/badge.svg?token=M0KTUAOO4V)](https://codecov.io/gh/pankajnayak1994/pyrept)
 [![PyPI](https://img.shields.io/pypi/v/pyrept)](https://pypi.org/project/pyrept/)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/pyrept)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pyrept)
-![PyPI - License](https://img.shields.io/pypi/l/pyrept)
-![HTML](https://img.shields.io/badge/HTML-offline%20report-E34F26)
-![JSON](https://img.shields.io/badge/JSON-automation-292929)
-![Playwright](https://img.shields.io/badge/Playwright-supported-2EAD33)
-![pytest](https://img.shields.io/badge/pytest-supported-0A9EDC)
-![unittest](https://img.shields.io/badge/unittest-supported-3776AB)
-![nose2](https://img.shields.io/badge/nose2-supported-4B8BBE)
-![behave](https://img.shields.io/badge/behave%20BDD-supported-43A047)
-![JUnit XML](https://img.shields.io/badge/JUnit%20XML-output-6A5ACD)
-![CI](https://img.shields.io/badge/CI-GitHub%20Actions%20%7C%20GitLab%20%7C%20Jenkins%20%7C%20Azure-555)
+[![Python versions](https://img.shields.io/pypi/pyversions/pyrept)](https://pypi.org/project/pyrept/)
+[![Downloads](https://img.shields.io/pypi/dm/pyrept)](https://pypistats.org/packages/pyrept)
+[![License: MIT](https://img.shields.io/pypi/l/pyrept)](https://github.com/pankajnayak1994/pyrept/blob/master/LICENSE)
+
+[![Frameworks](https://img.shields.io/badge/frameworks-pytest%20%7C%20unittest%20%7C%20nose2%20%7C%20behave%20%7C%20Playwright%20%7C%20Selenium-0A9EDC)](#choose-your-framework)
+[![Outputs](https://img.shields.io/badge/outputs-HTML%20%7C%20JSON%20%7C%20JUnit%20XML-E34F26)](#junit-xml-output)
+[![Imports](https://img.shields.io/badge/imports-JUnit%20XML%20%7C%20Cucumber%20JSON%20%7C%20Playwright%20Test-6A5ACD)](#converting-other-reports)
+[![CI](https://img.shields.io/badge/CI-GitHub%20Actions%20%7C%20GitLab%20%7C%20Jenkins%20%7C%20Azure%20DevOps-555)](#using-pyrept-in-ci)
 
 pyrept turns a test run into:
 
@@ -22,26 +18,24 @@ pyrept turns a test run into:
 - **`report.json`**: the same data in machine-readable form, for dashboards, bots and pipelines.
 - **`junit.xml`** (optional): JUnit XML, so GitLab, Jenkins, Azure DevOps and other CI servers can show results in their test tabs.
 
-It works the same way with pytest, unittest, nose2, behave (Cucumber BDD) and browser tests run through pytest. It can also convert JUnit XML, Cucumber JSON and Playwright Test JSON reports, so teams using other languages get the same report.
+It works the same way with pytest, unittest, nose2, behave (Cucumber BDD), and Playwright or Selenium browser tests run through pytest. It can also convert JUnit XML, Cucumber JSON and Playwright Test JSON reports, so teams using Java, JavaScript, Go, .NET or Ruby get the same report.
 
-Every runner and converter can also do two CI-friendly things: write **JUnit XML** next to the HTML/JSON report, and compare against the previous run's `report.json` to highlight **new failures, fixed tests, still-failing tests and slowdowns**.
+Every runner and converter can also compare against the previous run's `report.json` and highlight **new failures, fixed tests, still-failing tests and slowdowns**, which is usually the first thing you want to know after a red CI build.
 
-Search-friendly summary: pyrept is a Python test report generator for pytest, unittest, nose2, behave/Cucumber, Playwright and Selenium. It creates offline HTML reports, JSON test results, JUnit XML for CI, test-result dashboards, failure screenshots, flaky-test metadata, baseline comparison and report conversion for GitHub Actions, GitLab CI, Jenkins and Azure DevOps.
-
-![Report Screenshot](https://raw.githubusercontent.com/pankajnayak1994/pyrept/master/docs/images/report.png)
+![pyrept HTML test report with summary, outcome chart, environment, slowest tests and a failing Playwright test with its screenshot](https://raw.githubusercontent.com/pankajnayak1994/pyrept/master/docs/images/report.png)
 
 ## Why pyrept?
 
 - **One report shape across frameworks:** pytest, unittest, nose2, behave/Cucumber and browser tests can all produce the same HTML and JSON format.
 - **CI-native output:** write JUnit XML for GitHub Actions, GitLab CI, Jenkins, Azure DevOps and other CI systems.
-- **Regression-focused reporting:** compare with the previous `report.json` to see new failures, fixed tests, still-failing tests, new tests, removed tests and slowdowns.
+- **Regression-focused reporting:** compare with the previous `report.json` to see new failures, fixed tests, still-failing tests, new tests, removed tests and slowdowns ([see it](#compare-with-the-previous-run)).
 - **Works beyond Python:** convert JUnit XML, Cucumber JSON and Playwright Test JSON from Java, JavaScript, TypeScript, Go, .NET, Ruby and other stacks.
-- **Useful failure context:** captured stdout/stderr/logs, screenshots, tags, retries, flaky status, durations and file locations stay with the test result.
+- **Useful failure context:** captured stdout/stderr/logs, failure screenshots, tags, retries, flaky status, durations and file locations stay with the test result.
+- **Nothing to host:** the HTML report is one self-contained file with no CDN, server or database. Search, filters, dark mode and screenshot zoom all work offline.
 
 ## Contents
 
 - [Quick start](#quick-start)
-- [Why pyrept?](#why-pyrept)
 - [Installation](#installation)
 - [Choose your framework](#choose-your-framework)
 - [pytest](#pytest) · [unittest](#unittest) · [nose2](#nose2) · [behave](#behave-cucumber-bdd) · [Converting other reports](#converting-other-reports)
@@ -52,7 +46,7 @@ Search-friendly summary: pyrept is a Python test report generator for pytest, un
 - [Python API](#python-api)
 - [JSON report format](#json-report-format)
 - [Troubleshooting](#troubleshooting)
-- [Development](#development)
+- [Development](#development) · [License](#license)
 
 ## Quick start
 
@@ -61,7 +55,13 @@ pip install pyrept
 pytest --pyrept
 ```
 
-Then open `report.html` in a browser. That is the whole setup for pytest. For other frameworks, see [Choose your framework](#choose-your-framework).
+Then open `report.html` in a browser. That is the whole setup for pytest. To also get JUnit XML for your CI server and a comparison with the last run:
+
+```bash
+pytest --pyrept --pyrept-junit=junit.xml --pyrept-baseline=report.json
+```
+
+For unittest, nose2, behave or reports from other languages, see [Choose your framework](#choose-your-framework).
 
 ## Installation
 
@@ -201,7 +201,7 @@ baseline-report-path = test_results/report.json     # optional
 
 Then run `nose2`. Without `always-on`, run `nose2 --html-report` instead.
 
-The same path names work as command-line flags. Command-line values override `nose2.cfg`, so this now works without putting paths in the config file:
+The same path names work as command-line flags, and command-line values override `nose2.cfg`, so you do not need to put paths in the config file:
 
 ```bash
 nose2 --html-report --html-report-path=out/report.html --json-report-path=out/report.json \
@@ -249,45 +249,30 @@ Each scenario, and each Scenario Outline example, is one test. Its tags and step
 
 ## Converting other reports
 
+`pyrept convert` turns reports from other tools and languages into the same HTML and JSON report. pyrept is installed with Python, but the project you convert reports from does not need to be a Python project.
+
+| Tool | Produce this first | Then run |
+|---|---|---|
+| **Maven** (Surefire) | built in: `target/surefire-reports/*.xml` | `pyrept convert --from junit target/surefire-reports/*.xml --title "Maven tests"` |
+| **Gradle** | built in: `build/test-results/test/*.xml` | `pyrept convert --from junit build/test-results/test/*.xml --title "Gradle tests"` |
+| **Jest** | [`jest-junit`](https://www.npmjs.com/package/jest-junit) reporter writing `reports/jest.xml` | `pyrept convert --from junit reports/jest.xml --title "Jest tests"` |
+| **Cypress** | `--reporter junit --reporter-options "mochaFile=reports/cypress-[hash].xml"` | `pyrept convert --from junit reports/cypress-*.xml --title "Cypress tests"` |
+| **Playwright Test** (JS/TS) | `npx playwright test --reporter=json > results.json` | `pyrept convert --from playwright results.json --title "Playwright E2E"` |
+| **Go** | `gotestsum --junitfile reports/go-junit.xml` | `pyrept convert --from junit reports/go-junit.xml --title "Go tests"` |
+| **.NET** | `dotnet test --logger "junit;LogFilePath=TestResults/junit.xml"` ([JunitXml.TestLogger](https://www.nuget.org/packages/JunitXml.TestLogger)) | `pyrept convert --from junit TestResults/junit.xml --title ".NET tests"` |
+| **Cucumber** (cucumber-jvm, cucumber-js, cucumber-ruby, godog) | the `json` formatter, e.g. `target/cucumber.json` | `pyrept convert --from cucumber target/cucumber.json --title "BDD"` |
+
+More examples:
+
 ```bash
-# JUnit XML: Maven Surefire / Gradle, Jest (jest-junit), Go (gotestsum), Cypress, .NET, pytest --junitxml, ...
-pyrept convert --from junit target/surefire-reports/*.xml --title "Backend"
-
-# Cucumber JSON: cucumber-jvm, cucumber-js, cucumber-ruby, godog, behave -f json, ...
-pyrept convert --from cucumber target/cucumber.json --html report.html --json report.json
-
-# Playwright Test (JS/TS)
-npx playwright test --reporter=json > results.json
-pyrept convert --from playwright results.json --title "E2E" --fail-on-failure
-```
-
-Convert common test reports into one searchable HTML report:
-
-```bash
-# Maven Surefire
-pyrept convert --from junit target/surefire-reports/*.xml --title "Maven tests"
-
-# Gradle JUnit XML
-pyrept convert --from junit build/test-results/test/*.xml --title "Gradle tests"
-
-# Jest with jest-junit configured to write reports/jest.xml
-pyrept convert --from junit reports/jest.xml --title "Jest tests"
-
-# Cypress with JUnit reporter output in reports/cypress-*.xml
-pyrept convert --from junit reports/cypress-*.xml --title "Cypress tests"
-
-# Playwright Test (JavaScript / TypeScript)
-npx playwright test --reporter=json > results.json
-pyrept convert --from playwright results.json --title "Playwright E2E"
-
-# Go tests through gotestsum/go-junit-report
-pyrept convert --from junit reports/go-junit.xml --title "Go tests"
-
-# .NET test results converted to JUnit XML
-pyrept convert --from junit TestResults/*.xml --title ".NET tests"
-
-# Multiple CI shards merged into one report
+# Merge the results of parallel or sharded CI jobs into one report
 pyrept convert --from junit shard-*/junit.xml --html reports/report.html --json reports/report.json
+
+# Turn Cucumber or Playwright results into JUnit XML for your CI server, and fail the job on test failures
+pyrept convert --from playwright results.json --junit reports/junit.xml --fail-on-failure
+
+# Compare with the report from the previous run
+pyrept convert --from junit target/surefire-reports/*.xml --baseline reports/report.json --json reports/report.json
 ```
 
 | Option | Meaning |
@@ -308,7 +293,11 @@ You can also run the converter as `python -m pyrept convert ...`.
 
 ## Compare with the previous run
 
-Give pyrept an earlier `report.json` as the baseline. The new report then opens with a **Compared with previous run** panel and marks each changed test. Use the matching baseline option for your integration:
+Give pyrept an earlier `report.json` as the baseline. The new report then opens with a **Compared with previous run** panel and marks each changed test:
+
+![pyrept comparison panel showing new failures, fixed, still failing, new, removed and slower tests, with the New failures filter applied](https://raw.githubusercontent.com/pankajnayak1994/pyrept/master/docs/images/comparison.png)
+
+Use the matching baseline option for your integration:
 
 ```bash
 pytest --pyrept --pyrept-baseline=report.json
@@ -518,4 +507,4 @@ Changes are listed in [CHANGELOG.md](https://github.com/pankajnayak1994/pyrept/b
 
 ## License
 
-MIT
+[MIT](https://github.com/pankajnayak1994/pyrept/blob/master/LICENSE)
