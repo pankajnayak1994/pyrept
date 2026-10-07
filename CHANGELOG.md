@@ -4,7 +4,7 @@
 
 ### Changed
 - Releases are fully automated: each merged pull request also moves the `v1` tag for the GitHub Action, creates the GitHub release and publishes the `pytest-pyrept` alias package. `[SKIP]` titles or the `skip-release` label merge without a release.
-- The GitHub Action is tested on every pull request (`.github/workflows/action.yml`), and Dependabot keeps the workflows' actions up to date.
+- The GitHub Action is tested on every pull request (`.github/workflows/test-action.yml`), and Dependabot keeps the workflows' actions up to date.
 - Examples use `pankajnayak1994/pyrept@v1` instead of `@master`.
 
 ## 1.3.0
