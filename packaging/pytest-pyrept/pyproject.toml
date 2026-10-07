@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pytest-pyrept"
-version = "1.3.0"
+version = "1.3.3"
 description = "pytest plugin for searchable HTML, JSON and JUnit XML test reports (installs pyrept)."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -16,7 +16,7 @@ license = {text = "MIT"}
 authors = [
     {name = "Pankaj Kumar Nayak", email = "nayakpankaj2015@gmail.com"},
 ]
-dependencies = ["pyrept>=1.3"]
+dependencies = ["pyrept>=1.3.3"]
 keywords = ["pytest", "pytest-plugin", "html-report", "test-report", "junit", "playwright", "ci"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",

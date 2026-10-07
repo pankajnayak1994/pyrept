@@ -11,6 +11,7 @@
 [![Downloads](https://img.shields.io/pypi/dm/pyrept)](https://pypistats.org/packages/pyrept)
 [![License: MIT](https://img.shields.io/pypi/l/pyrept)](https://github.com/pankajnayak1994/pyrept/blob/master/LICENSE)
 [![Docs](https://img.shields.io/badge/docs-live%20demo-4f46e5)](https://pankajnayak1994.github.io/pyrept/)
+[![GitHub Marketplace](https://img.shields.io/badge/marketplace-pyrept-2ea44f?logo=github)](https://github.com/marketplace?type=actions&query=pyrept)
 
 [![Frameworks](https://img.shields.io/badge/frameworks-pytest%20%7C%20unittest%20%7C%20nose2%20%7C%20behave%20%7C%20pytest--bdd%20%7C%20Playwright%20%7C%20Selenium-0A9EDC)](#choose-your-framework)
 [![Outputs](https://img.shields.io/badge/outputs-HTML%20%7C%20JSON%20%7C%20JUnit%20XML%20%7C%20Markdown-E34F26)](#junit-xml-output)
@@ -418,7 +419,7 @@ To keep one report per CI run, copy `report.json` into a cached directory, for e
 
 ## GitHub Action
 
-The pyrept action puts the result in the job summary and keeps one comment on the pull request up to date. It works with any language through `convert-from`.
+The **pyrept** action ([GitHub Marketplace](https://github.com/marketplace?type=actions&query=pyrept)) puts the result in the job summary and keeps one comment on the pull request up to date. It works with any language through `convert-from`.
 
 ```yaml
 permissions:
@@ -463,7 +464,7 @@ For other languages, convert their report in the same step:
 | `notify` | `false` | Send the [notifications](#notifications) configured in the environment. |
 | `version` | latest | pyrept version to install. |
 
-Outputs: `total`, `passed`, `failed`, `errors`, `skipped`, `pass-rate` and `new-failures`. `@v1` always points to the newest 1.x release; pin an exact release such as `@v1.3.0` if you prefer.
+Outputs: `total`, `passed`, `failed`, `errors`, `skipped`, `pass-rate` and `new-failures`. `@v1` always points to the newest 1.x release; pin an exact release such as `@v1.3.3` if you prefer.
 
 ## Markdown and GitHub job summaries
 
