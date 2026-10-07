@@ -3,212 +3,315 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ test_report_title|e }}</title>
+<meta name="generator" content="pyrept by Pankaj Kumar Nayak">
 {%- set s = test_summary %}
 {%- set executed = s.total - s.skipped %}
+{%- set problems = s.failed + s.error %}
+{%- set status = 'empty' if not s.total else ('failed' if problems else 'passed') %}
+{%- set brand = branding or {} %}
+{%- set cmp = comparison %}
+{%- set groups = failure_groups or [] %}
+{%- set max_duration = slowest_tests[0].duration if slowest_tests else 0 %}
+{% if brand.favicon %}<link rel="icon" href="{{ brand.favicon|e }}">{% endif %}
+<title>{{ '✕ ' if status == 'failed' else ('✓ ' if status == 'passed' else '') }}{{ test_report_title|e }}</title>
 <style>
-:root {
-  --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #667085; --border: #e3e6eb;
-  --pass: #1a7f4b; --pass-bg: #e6f4ec; --fail: #c4321f; --fail-bg: #fdecea;
-  --error: #9a3412; --error-bg: #fff1e6; --skip: #8a6d00; --skip-bg: #fff8db;
-  --accent: #3559c7; --code-bg: #f1f3f6;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #12151b; --panel: #1b1f27; --text: #e6e8ec; --muted: #9aa3b2; --border: #2c323d;
-    --pass: #4cc38a; --pass-bg: #15301f; --fail: #ff6b5a; --fail-bg: #3a1a17;
-    --error: #ff9d5c; --error-bg: #3a2414; --skip: #e5c454; --skip-bg: #332b0f;
-    --accent: #7c9bff; --code-bg: #12151b;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #12151b; --panel: #1b1f27; --text: #e6e8ec; --muted: #9aa3b2; --border: #2c323d;
-  --pass: #4cc38a; --pass-bg: #15301f; --fail: #ff6b5a; --fail-bg: #3a1a17;
-  --error: #ff9d5c; --error-bg: #3a2414; --skip: #e5c454; --skip-bg: #332b0f;
-  --accent: #7c9bff; --code-bg: #12151b;
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text);
-  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-.wrap { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
-h1 { margin: 0; font-size: 24px; }
-.sub { color: var(--muted); font-size: 13px; }
-button, .chip { font: inherit; cursor: pointer; border: 1px solid var(--border); background: var(--panel);
-  color: var(--text); border-radius: 8px; padding: 6px 12px; }
-button:hover, .chip:hover { border-color: var(--accent); }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
-.card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
-.card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-.card .value { font-size: 28px; font-weight: 650; }
-.v-pass { color: var(--pass); } .v-fail { color: var(--fail); } .v-error { color: var(--error); } .v-skip { color: var(--skip); }
-.overview { display: grid; grid-template-columns: 220px 1fr 1fr; gap: 12px; margin-top: 12px; }
-@media (max-width: 860px) { .overview { grid-template-columns: 1fr; } }
-.donut { width: 140px; height: 140px; border-radius: 50%; margin: 6px auto; position: relative;
-  background: conic-gradient(var(--pass) 0 var(--p1), var(--fail) 0 var(--p2), var(--error) 0 var(--p3), var(--skip) 0 100%); }
-.donut.empty { background: var(--border); }
-.donut::after { content: ""; position: absolute; inset: 22px; border-radius: 50%; background: var(--panel); }
-.donut span { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; font-size: 22px; font-weight: 650; }
-.legend { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: center; font-size: 12px; color: var(--muted); }
-.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
-table.kv { width: 100%; border-collapse: collapse; font-size: 13px; }
-table.kv td { padding: 4px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
-table.kv td:first-child { color: var(--muted); width: 38%; padding-right: 10px; }
-table.kv td:last-child { word-break: break-word; }
-h2 { font-size: 13px; margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-.toolbar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 14px 0 10px; margin-top: 16px;
-  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.toolbar input { flex: 1 1 260px; min-width: 0; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);
-  background: var(--panel); color: var(--text); font: inherit; }
-.chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-.count { opacity: .8; margin-left: 4px; }
-.tests { display: flex; flex-direction: column; gap: 6px; }
-details.test { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 10px; }
-details.test.passed { border-left-color: var(--pass); } details.test.failed { border-left-color: var(--fail); }
-details.test.error { border-left-color: var(--error); } details.test.skipped { border-left-color: var(--skip); }
-details.test > summary { list-style: none; cursor: pointer; padding: 10px 14px; display: flex; gap: 10px; align-items: center; }
-details.test > summary::-webkit-details-marker { display: none; }
-.badge { flex: none; font-size: 11px; font-weight: 650; text-transform: uppercase; border-radius: 6px; padding: 2px 8px; }
-.b-passed { color: var(--pass); background: var(--pass-bg); } .b-failed { color: var(--fail); background: var(--fail-bg); }
-.b-error { color: var(--error); background: var(--error-bg); } .b-skipped { color: var(--skip); background: var(--skip-bg); }
-.tname { flex: 1; min-width: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
-.dur { flex: none; color: var(--muted); font-size: 12px; }
-.tag { font-size: 11px; color: var(--accent); border: 1px solid var(--border); border-radius: 999px; padding: 0 7px; margin-left: 4px; }
-.body { padding: 0 14px 14px; border-top: 1px solid var(--border); }
-.body h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 14px 0 6px; }
-.desc { white-space: pre-wrap; margin: 0; }
-pre.tb { position: relative; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px;
-  overflow: auto; max-height: 420px; font-size: 12px; margin: 0; white-space: pre; }
-.copy { position: sticky; float: right; top: 0; font-size: 11px; padding: 2px 8px; }
-.attachments { display: flex; flex-wrap: wrap; gap: 12px; }
-.attachments figure { margin: 0; max-width: 100%; }
-.attachments img { max-width: min(520px, 100%); border: 1px solid var(--border); border-radius: 8px; cursor: zoom-in; display: block; }
-.attachments figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; }
-.meta { color: var(--muted); font-size: 12px; }
-.empty-state { text-align: center; color: var(--muted); padding: 40px; display: none; }
-footer { margin-top: 28px; color: var(--muted); font-size: 12px; text-align: center; }
-footer a { color: var(--accent); }
-.compare { margin-top: 12px; }
-.compare .head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline; }
-.compare .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin: 10px 0 4px; }
-.compare .stat { border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; }
-.compare .stat b { display: block; font-size: 22px; font-weight: 650; }
-.compare details { margin-top: 8px; }
-.compare summary { cursor: pointer; color: var(--muted); font-size: 13px; }
-.compare ul { margin: 6px 0 0; padding-left: 18px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+{% include '_theme.css' %}
+{% if brand.accent %}:root, :root[data-theme] { --accent: {{ brand.accent }}; }{% endif %}
+
+/* comparison */
+.compare .stat b { font-size: 24px; }
 .delta-up { color: var(--pass); } .delta-down { color: var(--fail); }
-.change { flex: none; font-size: 10px; font-weight: 650; text-transform: uppercase; border-radius: 6px; padding: 1px 6px; border: 1px solid currentColor; }
+
+/* failure groups */
+.groups ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.groups ol > li { border: 1px solid var(--border); border-left: 3px solid var(--fail); border-radius: 10px; padding: 10px 14px;
+  background: var(--surface-2); }
+.groups .row { display: flex; gap: 12px; align-items: baseline; }
+.groups .n { flex: none; font-weight: 700; color: var(--fail); font-variant-numeric: tabular-nums; }
+.groups .msg { font-family: var(--mono); font-size: 12.5px; overflow-wrap: anywhere; }
+
+/* test map */
+.map { display: flex; flex-wrap: wrap; gap: 3px; }
+.map a { width: 12px; height: 12px; border-radius: 3px; display: block; transition: transform .1s; }
+.map a:hover, .map a:focus-visible { transform: scale(1.5); position: relative; z-index: 1; }
+.cell-passed { background: var(--pass); opacity: .55; } .cell-failed { background: var(--fail); }
+.cell-error { background: var(--error); } .cell-skipped { background: var(--skip); opacity: .6; }
+.map-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 12px; }
+.map-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+/* toolbar */
+.toolbar { position: sticky; top: 0; z-index: 20; margin-top: 18px; padding: 12px 0; background: var(--bg);
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.toolbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--border); }
+.search { position: relative; flex: 1 1 280px; min-width: 0; order: 1; }
+#sort { order: 2; } #expand { order: 3; } #collapse { order: 4; }
+.toolbar .break { flex-basis: 100%; height: 0; order: 5; }
+.segmented { order: 6; }
+.search svg { position: absolute; left: 11px; top: 50%; width: 15px; height: 15px; transform: translateY(-50%); color: var(--faint); }
+.search input { width: 100%; padding: 9px 40px 9px 34px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font: inherit; box-shadow: var(--shadow); }
+.search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.search kbd { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font: 11px var(--mono); color: var(--faint);
+  border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; background: var(--surface-2); }
+.segmented { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 3px; border: 1px solid var(--border);
+  border-radius: 11px; background: var(--surface); box-shadow: var(--shadow); }
+.chip { font: inherit; font-size: 13px; cursor: pointer; border: 0; background: transparent; color: var(--muted);
+  border-radius: 8px; padding: 5px 10px; display: inline-flex; align-items: center; gap: 6px; }
+.chip:hover { color: var(--text); background: var(--surface-2); }
+.chip.active { background: var(--accent); color: #fff; }
+.chip .count { font-variant-numeric: tabular-nums; font-size: 11.5px; padding: 0 6px; border-radius: 99px;
+  background: var(--surface-2); color: var(--muted); }
+.chip.active .count { background: rgba(255,255,255,.22); color: #fff; }
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+.btn { font: inherit; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); border-radius: 10px; padding: 7px 11px; box-shadow: var(--shadow); }
+.btn:hover { border-color: var(--border-strong); }
+
+/* tests */
+.tests { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+details.test { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow);
+  scroll-margin-top: 80px; }
+details.test[open] { box-shadow: var(--shadow-lg); border-color: var(--border-strong); }
+details.test.flash { animation: flash 1.2s ease-out; }
+@keyframes flash { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: var(--shadow); } }
+details.test > summary { list-style: none; cursor: pointer; padding: 10px 14px; display: flex; gap: 10px; align-items: center;
+  position: relative; border-radius: 12px; }
+details.test > summary::-webkit-details-marker { display: none; }
+details.test > summary:hover { background: var(--surface-2); }
+details.test[open] > summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.status { flex: none; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; }
+.status svg { width: 13px; height: 13px; }
+.st-passed { color: var(--pass); background: var(--pass-soft); } .st-failed { color: var(--fail); background: var(--fail-soft); }
+.st-error { color: var(--error); background: var(--error-soft); } .st-skipped { color: var(--skip); background: var(--skip-soft); }
+.badge { flex: none; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; border-radius: 6px; padding: 2px 7px; }
+.b-passed { color: var(--pass); background: var(--pass-soft); } .b-failed { color: var(--fail); background: var(--fail-soft); }
+.b-error { color: var(--error); background: var(--error-soft); } .b-skipped { color: var(--skip); background: var(--skip-soft); }
+.tname { flex: 1; min-width: 0; overflow-wrap: anywhere; font-family: var(--mono); font-size: 12.8px; line-height: 1.45; }
+.tname .where { color: var(--faint); }
+.tname .leaf { color: var(--text); font-weight: 600; }
+.tag { display: inline-block; font: 600 10.5px var(--sans); color: var(--accent); background: var(--accent-soft);
+  border-radius: 99px; padding: 1px 8px; margin-left: 6px; vertical-align: 1px; }
+.change { flex: none; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; border-radius: 6px;
+  padding: 1px 6px; border: 1px solid currentColor; }
 .c-new-failure { color: var(--fail); } .c-fixed { color: var(--pass); } .c-still-failing { color: var(--error); } .c-new { color: var(--accent); }
-.lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.8); display: none; place-items: center; z-index: 50; padding: 20px; }
-.lightbox img { max-width: 100%; max-height: 100%; }
+.dur { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; min-width: 64px; }
+.dur span { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.dur i { display: block; height: 3px; border-radius: 3px; background: var(--border-strong); max-width: 64px; min-width: 2px; }
+.chev { flex: none; width: 16px; height: 16px; color: var(--faint); transition: transform .15s; }
+details.test[open] .chev { transform: rotate(90deg); }
+.body { padding: 4px 18px 18px 46px; border-top: 1px solid var(--border); }
+.body h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 16px 0 7px; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 12.5px; color: var(--muted); }
+.facts span { display: inline-flex; align-items: center; gap: 5px; overflow-wrap: anywhere; }
+.desc { white-space: pre-wrap; margin: 0; }
+pre.tb { position: relative; background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px;
+  overflow: auto; max-height: 460px; font-size: 12px; line-height: 1.55; margin: 0; white-space: pre; tab-size: 4; }
+.tb .copy { position: sticky; float: right; top: 0; margin-left: 8px; font: 600 11px var(--sans); padding: 3px 9px;
+  border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; }
+.tb .copy:hover { color: var(--text); }
+.attachments { display: flex; flex-wrap: wrap; gap: 14px; }
+.attachments figure { margin: 0; max-width: 100%; }
+.attachments img { max-width: min(560px, 100%); border: 1px solid var(--border); border-radius: 10px; cursor: zoom-in; display: block; }
+.attachments figcaption { font-size: 12px; color: var(--muted); margin-top: 5px; }
+.copy-name { font: inherit; font-size: 12px; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0;
+  text-decoration: underline dotted; }
+.empty-state { text-align: center; color: var(--muted); padding: 48px 20px; display: none; }
+.lightbox { position: fixed; inset: 0; background: rgba(5, 8, 15, .86); display: none; place-items: center; z-index: 50; padding: 24px; }
+.lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+kbd { font: 11px var(--mono); border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; background: var(--surface); }
+@media (max-width: 640px) {
+  .toolbar { position: static; }
+  .body { padding-left: 16px; }
+  .dur { display: none; }
+  .badge { display: none; }
+  .hero-main .ring { width: 108px; height: 108px; }
+}
+@media print { details.test { break-inside: avoid; box-shadow: none; } }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div>
-      <h1>{{ test_report_title|e }}</h1>
-      <div class="sub">Generated {{ timestamp }}{% if duration is not none %} · Total time {{ '%.2f'|format(duration) }}s{% endif %}</div>
-    </div>
-    <button id="theme" type="button" title="Toggle dark mode">Toggle theme</button>
-  </header>
+<div class="topbar">
+  <div class="wrap">
+    <span class="brand">
+      {%- if brand.logo %}<img src="{{ brand.logo|e }}" alt="">{% else %}<span class="mark" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3 3 7-7"/></svg></span>{% endif %}
+      <span>pyrept <small>test report</small></span>
+    </span>
+    <button class="icon-btn" id="theme" type="button" title="Toggle dark mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><span>Theme</span></button>
+  </div>
+</div>
 
-  <section class="grid" aria-label="Summary">
-    <div class="card"><div class="label">Total</div><div class="value">{{ s.total }}</div></div>
-    <div class="card"><div class="label">Passed</div><div class="value v-pass">{{ s.passed }}</div></div>
-    <div class="card"><div class="label">Failed</div><div class="value v-fail">{{ s.failed }}</div></div>
-    <div class="card"><div class="label">Errors</div><div class="value v-error">{{ s.error }}</div></div>
-    <div class="card"><div class="label">Skipped</div><div class="value v-skip">{{ s.skipped }}</div></div>
-    <div class="card"><div class="label">Pass rate</div><div class="value">{{ s.percentage }}%</div></div>
-  </section>
-
-  <section class="overview">
-    <div class="card">
-      <h2>Outcome</h2>
+<header class="hero is-{{ status }}">
+  <div class="wrap">
+    <div class="hero-main">
+      <div class="verdict">
+        <span class="status-pill"><i></i>{% if status == 'failed' %}Failed{% elif status == 'passed' %}Passed{% else %}No tests ran{% endif %}</span>
+        <h1>{{ test_report_title|e }}</h1>
+        <div class="meta-line">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{{ timestamp }}</span>
+          {% if duration is not none %}<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 2h4M12 14l3-3"/><circle cx="12" cy="14" r="8"/></svg>{{ '%.2f'|format(duration) }}s total</span>{% endif %}
+          {% if (environment or {}).get('Framework') %}<span>{{ environment.Framework|e }}</span>{% endif %}
+          {% if (environment or {}).get('Python') %}<span>Python {{ environment.Python|e }}</span>{% endif %}
+        </div>
+      </div>
       {%- set t = s.total if s.total else 1 %}
-      {%- set p1 = (s.passed * 100 / t) %}{% set p2 = p1 + (s.failed * 100 / t) %}{% set p3 = p2 + (s.error * 100 / t) %}
-      <div class="donut{% if not s.total %} empty{% endif %}" style="--p1: {{ '%.2f'|format(p1) }}%; --p2: {{ '%.2f'|format(p2) }}%; --p3: {{ '%.2f'|format(p3) }}%;"
-           role="img" aria-label="{{ s.passed }} passed, {{ s.failed }} failed, {{ s.error }} errors, {{ s.skipped }} skipped">
-        <span>{{ s.percentage }}%</span>
+      {%- set p_pass = s.passed * 100 / t %}{% set p_fail = s.failed * 100 / t %}{% set p_err = s.error * 100 / t %}{% set p_skip = s.skipped * 100 / t %}
+      <div class="ring donut{% if not s.total %} empty{% endif %}" role="img"
+           aria-label="{{ s.passed }} passed, {{ s.failed }} failed, {{ s.error }} errors, {{ s.skipped }} skipped">
+        <svg viewBox="0 0 132 132" aria-hidden="true">
+          <circle class="track" cx="66" cy="66" r="54"/>
+          {%- set ns = namespace(offset=0) %}
+          {%- for value, color in [(p_pass, 'var(--pass)'), (p_fail, 'var(--fail)'), (p_err, 'var(--error)'), (p_skip, 'var(--skip)')] %}
+          {%- if value > 0 %}
+          <circle cx="66" cy="66" r="54" pathLength="100" stroke="{{ color }}" stroke-dasharray="{{ '%.3f'|format(value) }} {{ '%.3f'|format(100 - value) }}" stroke-dashoffset="{{ '%.3f'|format(-ns.offset) }}"/>
+          {%- set ns.offset = ns.offset + value %}
+          {%- endif %}
+          {%- endfor %}
+        </svg>
+        <div class="label"><b>{{ s.percentage }}%</b><span>pass rate</span></div>
       </div>
-      <div class="legend">
-        <span><i class="dot" style="background:var(--pass)"></i>Passed</span>
-        <span><i class="dot" style="background:var(--fail)"></i>Failed</span>
-        <span><i class="dot" style="background:var(--error)"></i>Error</span>
-        <span><i class="dot" style="background:var(--skip)"></i>Skipped</span>
-      </div>
     </div>
-    <div class="card">
-      <h2>Environment</h2>
-      <table class="kv">
-        {% for key, value in (environment or {}).items() %}<tr><td>{{ key|e }}</td><td>{{ value|e }}</td></tr>{% endfor %}
-        <tr><td>Executed</td><td>{{ executed }} of {{ s.total }} (skipped excluded from pass rate)</td></tr>
-      </table>
-    </div>
-    <div class="card">
-      <h2>Slowest tests</h2>
-      {% if slowest_tests %}
-      <table class="kv">
-        {% for t in slowest_tests %}<tr><td title="{{ t.name|e }}">{{ t.name|truncate(48, True)|e }}</td><td>{{ '%.3f'|format(t.duration) }}s</td></tr>{% endfor %}
-      </table>
-      {% else %}<p class="meta">No timing data recorded.</p>{% endif %}
-    </div>
-  </section>
 
-  {% set cmp = comparison %}
+    <div class="outcome-bar" aria-hidden="true">
+      {%- for key in ['passed', 'failed', 'error', 'skipped'] %}{% if s[key] %}<span class="seg-{{ key }}" style="width: {{ '%.4f'|format(s[key] * 100 / t) }}%" title="{{ s[key] }} {{ key }}"></span>{% endif %}{% endfor -%}
+    </div>
+
+    <div class="kpis">
+      <a class="kpi" href="#all" data-jump="all"><div class="k">Total</div><div class="v">{{ s.total }}</div></a>
+      <a class="kpi" href="#passed" data-jump="passed"><div class="k"><i class="seg-passed"></i>Passed</div><div class="v">{{ s.passed }}</div></a>
+      <a class="kpi" href="#failed" data-jump="failed"><div class="k"><i class="seg-failed"></i>Failed</div><div class="v">{{ s.failed }}</div></a>
+      <a class="kpi" href="#error" data-jump="error"><div class="k"><i class="seg-error"></i>Errors</div><div class="v">{{ s.error }}</div></a>
+      <a class="kpi" href="#skipped" data-jump="skipped"><div class="k"><i class="seg-skipped"></i>Skipped</div><div class="v">{{ s.skipped }}</div></a>
+      <div class="kpi"><div class="k">Pass rate</div><div class="v">{{ s.percentage }}%{% if cmp and cmp.percentage_delta is number %}<span class="d {{ 'up' if cmp.percentage_delta > 0 else ('down' if cmp.percentage_delta < 0 else '') }}">{{ '%+.2f'|format(cmp.percentage_delta) }}</span>{% endif %}</div></div>
+    </div>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
   {% if cmp %}
   {%- set base = cmp.baseline or {} %}
   {%- macro name_list(title, names) -%}
-    {% if names %}<details><summary>{{ title }} ({{ names|length }})</summary><ul>{% for n in names[:200] %}<li>{{ n|e }}</li>{% endfor %}{% if names|length > 200 %}<li>… {{ names|length - 200 }} more</li>{% endif %}</ul></details>{% endif %}
+    {% if names %}<details class="list"><summary>{{ title }} ({{ names|length }})</summary><ul>{% for n in names[:200] %}<li>{{ n|e }}</li>{% endfor %}{% if names|length > 200 %}<li>… {{ names|length - 200 }} more</li>{% endif %}</ul></details>{% endif %}
   {%- endmacro %}
-  <section class="card compare" aria-label="Comparison with baseline">
-    <div class="head">
-      <h2>Compared with previous run</h2>
+  <section class="card card-pad section compare" aria-label="Comparison with baseline">
+    <div class="card-head">
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg>Compared with previous run</h2>
       <span class="meta">{{ (base.source or 'baseline')|e }}{% if base.timestamp %} · {{ base.timestamp|e }}{% endif %}{% if base.percentage is number %} · pass rate then {{ base.percentage|e }}%{% endif %}{% if cmp.percentage_delta is number %} · <span class="{{ 'delta-up' if cmp.percentage_delta > 0 else ('delta-down' if cmp.percentage_delta < 0 else '') }}">{{ '%+.2f'|format(cmp.percentage_delta) }} pts</span>{% endif %}</span>
     </div>
-    <div class="stats">
-      <div class="stat"><span class="label meta">New failures</span><b class="v-fail">{{ cmp.new_failures|length }}</b></div>
-      <div class="stat"><span class="label meta">Fixed</span><b class="v-pass">{{ cmp.fixed|length }}</b></div>
-      <div class="stat"><span class="label meta">Still failing</span><b class="v-error">{{ cmp.still_failing|length }}</b></div>
-      <div class="stat"><span class="label meta">New tests</span><b>{{ cmp.new_tests|length }}</b></div>
-      <div class="stat"><span class="label meta">Removed tests</span><b>{{ cmp.removed_tests|length }}</b></div>
-      <div class="stat"><span class="label meta">Slower</span><b>{{ cmp.slower|length }}</b></div>
+    <div class="stat-row">
+      <div class="stat"><span class="k">New failures</span><b class="v-fail">{{ cmp.new_failures|length }}</b></div>
+      <div class="stat"><span class="k">Fixed</span><b class="v-pass">{{ cmp.fixed|length }}</b></div>
+      <div class="stat"><span class="k">Still failing</span><b class="v-error">{{ cmp.still_failing|length }}</b></div>
+      <div class="stat"><span class="k">New tests</span><b>{{ cmp.new_tests|length }}</b></div>
+      <div class="stat"><span class="k">Removed tests</span><b>{{ cmp.removed_tests|length }}</b></div>
+      <div class="stat"><span class="k">Slower</span><b>{{ cmp.slower|length }}</b></div>
     </div>
     {{ name_list('New failures', cmp.new_failures) }}
     {{ name_list('Fixed', cmp.fixed) }}
     {{ name_list('Still failing', cmp.still_failing) }}
     {{ name_list('New tests', cmp.new_tests) }}
     {{ name_list('Removed tests', cmp.removed_tests) }}
-    {% if cmp.slower %}<details><summary>Slower tests ({{ cmp.slower|length }})</summary><ul>{% for t in cmp.slower %}<li>{{ t.name|e }}: {{ '%.3f'|format(t.before) }}s → {{ '%.3f'|format(t.after) }}s (×{{ t.ratio|e }})</li>{% endfor %}</ul></details>{% endif %}
+    {% if cmp.slower %}<details class="list"><summary>Slower tests ({{ cmp.slower|length }})</summary><ul>{% for t in cmp.slower %}<li>{{ t.name|e }}: {{ '%.3f'|format(t.before) }}s → {{ '%.3f'|format(t.after) }}s (×{{ t.ratio|e }})</li>{% endfor %}</ul></details>{% endif %}
+  </section>
+  {% endif %}
+
+  {% if groups %}
+  <section class="card card-pad section groups" aria-label="Common failure causes">
+    <div class="card-head">
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>Common failure causes</h2>
+      <span class="meta">Failures that share an error message, often one root cause</span>
+    </div>
+    <ol>
+      {% for g in groups %}
+      <li>
+        <div class="row"><span class="n">{{ g.count }} tests</span><span class="msg">{{ g.message|e }}</span></div>
+        <details class="list"><summary>Show tests</summary><ul>{% for n in g.tests[:200] %}<li>{{ n|e }}</li>{% endfor %}{% if g.tests|length > 200 %}<li>… {{ g.tests|length - 200 }} more</li>{% endif %}</ul></details>
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+  {% endif %}
+
+  <div class="grid-2 section">
+    <section class="card card-pad" aria-label="Environment">
+      <div class="card-head"><h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Environment</h2></div>
+      <table class="kv">
+        {% for key, value in (environment or {}).items() %}<tr><td>{{ key|e }}</td><td>{{ value|e }}</td></tr>{% endfor %}
+        <tr><td>Executed</td><td>{{ executed }} of {{ s.total }} (skipped excluded from pass rate)</td></tr>
+      </table>
+    </section>
+    <section class="card card-pad" aria-label="Slowest tests">
+      <div class="card-head"><h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 2h4M12 14l3-3"/><circle cx="12" cy="14" r="8"/></svg>Slowest tests</h2></div>
+      {% if slowest_tests %}
+      <div class="bars">
+        {% for t in slowest_tests %}
+        <div class="bar-row" title="{{ t.name|e }}"><span class="name">{{ t.name|e }}</span><span class="num">{{ '%.3f'|format(t.duration) }}s</span>
+          <span class="track"><span class="fill" style="display:block; width: {{ '%.2f'|format(t.duration * 100 / max_duration if max_duration else 0) }}%"></span></span></div>
+        {% endfor %}
+      </div>
+      {% else %}<p class="empty-note">No timing data recorded.</p>{% endif %}
+    </section>
+  </div>
+
+  {% if test_results %}
+  <section class="card card-pad section no-print" aria-label="Test map">
+    <div class="card-head">
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Test map</h2>
+      <span class="meta">One square per test{% if test_results|length > 3000 %} (first 3000 of {{ test_results|length }}){% endif %}, click one to open it</span>
+    </div>
+    <div class="map">{% for r in test_results[:3000] %}<a class="cell-{{ r.result }}" href="#t{{ loop.index }}" data-target="t{{ loop.index }}" title="{{ r.result }}: {{ r.name|e }}" aria-label="{{ r.result }}: {{ r.name|e }}"></a>{% endfor %}</div>
+    <div class="map-legend"><span><i class="cell-passed"></i>Passed</span><span><i class="cell-failed"></i>Failed</span><span><i class="cell-error"></i>Error</span><span><i class="cell-skipped"></i>Skipped</span></div>
   </section>
   {% endif %}
 
   <div class="toolbar" role="search">
-    <input id="search" type="search" placeholder="Search names, descriptions, tags and errors…" aria-label="Search tests">
-    <button class="chip active" data-filter="all" type="button">All<span class="count">{{ s.total }}</span></button>
-    <button class="chip" data-filter="problems" type="button">Problems<span class="count">{{ s.failed + s.error }}</span></button>
-    {% if cmp %}<button class="chip" data-filter="new-failure" type="button">New failures<span class="count">{{ cmp.new_failures|length }}</span></button>{% endif %}
-    <button class="chip" data-filter="passed" type="button">Passed<span class="count">{{ s.passed }}</span></button>
-    <button class="chip" data-filter="failed" type="button">Failed<span class="count">{{ s.failed }}</span></button>
-    <button class="chip" data-filter="error" type="button">Error<span class="count">{{ s.error }}</span></button>
-    <button class="chip" data-filter="skipped" type="button">Skipped<span class="count">{{ s.skipped }}</span></button>
-    <button id="expand" type="button">Expand all</button>
-    <button id="collapse" type="button">Collapse all</button>
+    <label class="search"><span class="sr-only">Search tests</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="search" type="search" placeholder="Search names, descriptions, tags and errors…" aria-label="Search tests" autocomplete="off"><kbd>/</kbd>
+    </label>
+    <span class="break" aria-hidden="true"></span>
+    <div class="segmented" role="group" aria-label="Filter by outcome">
+      <button class="chip active" data-filter="all" type="button">All<span class="count">{{ s.total }}</span></button>
+      <button class="chip" data-filter="problems" type="button">Problems<span class="count">{{ s.failed + s.error }}</span></button>
+      {% if cmp %}<button class="chip" data-filter="new-failure" type="button">New failures<span class="count">{{ cmp.new_failures|length }}</span></button>{% endif %}
+      <button class="chip" data-filter="passed" type="button"><i class="dot seg-passed"></i>Passed<span class="count">{{ s.passed }}</span></button>
+      <button class="chip" data-filter="failed" type="button"><i class="dot seg-failed"></i>Failed<span class="count">{{ s.failed }}</span></button>
+      <button class="chip" data-filter="error" type="button"><i class="dot seg-error"></i>Error<span class="count">{{ s.error }}</span></button>
+      <button class="chip" data-filter="skipped" type="button"><i class="dot seg-skipped"></i>Skipped<span class="count">{{ s.skipped }}</span></button>
+    </div>
+    <select class="btn" id="sort" aria-label="Sort tests">
+      <option value="status">Problems first</option>
+      <option value="name">Name</option>
+      <option value="duration">Slowest first</option>
+    </select>
+    <button class="btn" id="expand" type="button">Expand all</button>
+    <button class="btn" id="collapse" type="button">Collapse all</button>
   </div>
 
   <div class="tests" id="tests">
     {% for r in test_results %}
     {%- set md = r.metadata or {} %}
     {%- set change = (cmp.changes or {}).get(r.name) if cmp else none %}
-    <details class="test {{ r.result }}" data-result="{{ r.result }}"{% if change %} data-change="{{ change|e }}"{% endif %}{% if r.result in ['failed', 'error'] and loop.index <= 3 %} open{% endif %}>
+    {%- set where, leaf = r.name|split_test_name %}
+    <details class="test {{ r.result }}" id="t{{ loop.index }}" data-result="{{ r.result }}" data-index="{{ loop.index }}"{% if md.get('duration') is number %} data-duration="{{ md.duration }}"{% endif %}{% if change %} data-change="{{ change|e }}"{% endif %}{% if r.result in ['failed', 'error'] and loop.index <= 3 %} open{% endif %}>
       <summary>
+        <span class="status st-{{ r.result }}" title="{{ r.result }}">{% if r.result == 'passed' %}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>{% elif r.result == 'skipped' %}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 8h8"/></svg>{% elif r.result == 'error' %}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M8 3.5v5.5M8 12.5h.01"/></svg>{% else %}<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>{% endif %}</span>
         <span class="badge b-{{ r.result }}">{{ r.result }}</span>
         {% if change %}<span class="change c-{{ change|e }}">{{ change|replace('-', ' ')|e }}</span>{% endif %}
-        <span class="tname">{{ r.name|e }}{% for tag in md.get('tags') or [] %}<span class="tag">{{ tag|e }}</span>{% endfor %}</span>
-        {% if md.get('duration') is number %}<span class="dur">{{ '%.3f'|format(md.duration) }}s</span>{% endif %}
+        <span class="tname"><span class="where">{{ where|e }}</span><span class="leaf">{{ leaf|e }}</span>{% for tag in md.get('tags') or [] %}<span class="tag">{{ tag|e }}</span>{% endfor %}</span>
+        {% if md.get('duration') is number %}<span class="dur"><span>{{ '%.3f'|format(md.duration) }}s</span>{% if max_duration %}<i style="width: {{ '%.1f'|format([md.duration * 64 / max_duration, 64]|min) }}px"></i>{% endif %}</span>{% endif %}
+        <svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5l4.5 4.5L6 12.5"/></svg>
       </summary>
       <div class="body">
-        {% if md.get('location') %}<p class="meta">{{ md.location|e }}{% if md.get('project') %} · {{ md.project|e }}{% endif %}{% if md.get('retries') %} · retries: {{ md.retries|e }}{% endif %}{% if md.get('flaky') %} · flaky{% endif %}</p>{% endif %}
+        <div class="facts">
+          {% if md.get('location') %}<span class="mono">{{ md.location|e }}</span>{% endif %}
+          {% if md.get('project') %}<span>{{ md.project|e }}</span>{% endif %}
+          {% if md.get('suite') %}<span>{{ md.suite|e }}</span>{% endif %}
+          {% if md.get('retries') %}<span>retries: {{ md.retries|e }}</span>{% endif %}
+          {% if md.get('flaky') %}<span class="v-skip">flaky</span>{% endif %}
+          <button class="copy-name no-print" type="button" data-copy="{{ r.name|e }}">Copy name</button>
+        </div>
         <h3>Description</h3>
         {% if r.description %}<p class="desc">{{ r.description|e }}</p>{% else %}<p class="meta"><em>No description (add a docstring to the test).</em></p>{% endif %}
         {% if r.traceback %}
@@ -239,9 +342,10 @@ footer a { color: var(--accent); }
     {% endfor %}
   </div>
   <p class="empty-state" id="empty">No tests match the current filter.</p>
-
-  <footer>Generated by <a href="https://pypi.org/project/pyrept/">pyrept</a></footer>
 </div>
+</main>
+
+<footer class="page">Generated by <a href="https://pypi.org/project/pyrept/">pyrept</a> · <span class="sig">Developed by <a href="https://github.com/pankajnayak1994">Pankaj Kumar Nayak</a></span><span class="no-print"> · press <kbd>/</kbd> to search, <kbd>j</kbd> / <kbd>k</kbd> to move between tests</span></footer>
 <div class="lightbox" id="lightbox" role="dialog" aria-label="Screenshot"><img alt=""></div>
 
 <script>
@@ -256,11 +360,16 @@ footer a { color: var(--accent); }
     try { localStorage.setItem('pyrept-theme', next); } catch (e) {}
   });
 
+  var list = document.getElementById('tests');
   var tests = Array.prototype.slice.call(document.querySelectorAll('details.test'));
   var haystack = tests.map(function (el) { return el.textContent.toLowerCase(); });
   var search = document.getElementById('search');
   var empty = document.getElementById('empty');
   var filter = 'all';
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.chip'));
+  var HASHES = { 'all': '', 'problems': '#problems', 'new-failure': '#new-failures' };
+
+  function visible() { return tests.filter(function (el) { return el.style.display !== 'none'; }); }
 
   function apply() {
     var q = search.value.trim().toLowerCase();
@@ -275,50 +384,132 @@ footer a { color: var(--accent); }
     });
     empty.style.display = shown ? 'none' : 'block';
   }
+
+  function setFilter(name, updateHash) {
+    var chip = chips.filter(function (c) { return c.getAttribute('data-filter') === name; })[0];
+    if (!chip) return false;
+    chips.forEach(function (c) { c.classList.remove('active'); c.setAttribute('aria-pressed', 'false'); });
+    chip.classList.add('active');
+    chip.setAttribute('aria-pressed', 'true');
+    filter = name;
+    apply();
+    if (updateHash && window.history && history.replaceState) {
+      var hash = name in HASHES ? HASHES[name] : '#' + name;
+      try { history.replaceState(null, '', hash || location.pathname + location.search); } catch (e) {}
+    }
+    return true;
+  }
+
   search.addEventListener('input', apply);
-  document.querySelectorAll('.chip').forEach(function (chip) {
-    chip.addEventListener('click', function () {
-      document.querySelectorAll('.chip').forEach(function (c) { c.classList.remove('active'); });
-      chip.classList.add('active');
-      filter = chip.getAttribute('data-filter');
-      apply();
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () { setFilter(chip.getAttribute('data-filter'), true); });
+  });
+  document.querySelectorAll('[data-jump]').forEach(function (kpi) {
+    kpi.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      setFilter(kpi.getAttribute('data-jump'), true);
+      document.querySelector('.toolbar').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
+
+  document.getElementById('sort').addEventListener('change', function (ev) {
+    var mode = ev.target.value;
+    var sorted = tests.slice().sort(function (a, b) {
+      if (mode === 'duration') {
+        return (parseFloat(b.getAttribute('data-duration')) || 0) - (parseFloat(a.getAttribute('data-duration')) || 0);
+      }
+      if (mode === 'name') {
+        var an = a.querySelector('.tname').textContent, bn = b.querySelector('.tname').textContent;
+        return an < bn ? -1 : (an > bn ? 1 : 0);
+      }
+      return a.getAttribute('data-index') - b.getAttribute('data-index');
+    });
+    sorted.forEach(function (el) { list.appendChild(el); });
+  });
+
   document.getElementById('expand').addEventListener('click', function () {
-    tests.forEach(function (el) { if (el.style.display !== 'none') el.open = true; });
+    visible().forEach(function (el) { el.open = true; });
   });
   document.getElementById('collapse').addEventListener('click', function () {
     tests.forEach(function (el) { el.open = false; });
   });
+
+  function reveal(el) {
+    if (el.style.display === 'none') { search.value = ''; setFilter('all', false); }
+    el.open = true;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    try { el.querySelector('summary').focus({ preventScroll: true }); } catch (e) {}
+  }
+  document.querySelectorAll('.map a').forEach(function (cell) {
+    cell.addEventListener('click', function (ev) {
+      var el = document.getElementById(cell.getAttribute('data-target'));
+      if (el) { ev.preventDefault(); reveal(el); }
+    });
+  });
+
+  function copyText(text, btn, label) {
+    function done() { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = label; }, 1200); }
+    function fallback() {
+      // navigator.clipboard is missing on some file:// pages and older browsers
+      var area = document.createElement('textarea');
+      area.value = text; area.style.position = 'fixed'; area.style.opacity = '0';
+      document.body.appendChild(area); area.select();
+      try { if (document.execCommand('copy')) done(); } catch (e) {}
+      document.body.removeChild(area);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
+  }
   document.querySelectorAll('button.copy').forEach(function (btn) {
     btn.addEventListener('click', function (ev) {
       ev.preventDefault();
-      var text = btn.parentNode.querySelector('code').textContent;
-      function done() { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1200); }
-      function fallback() {
-        // navigator.clipboard is missing on some file:// pages and older browsers
-        var area = document.createElement('textarea');
-        area.value = text; area.style.position = 'fixed'; area.style.opacity = '0';
-        document.body.appendChild(area); area.select();
-        try { if (document.execCommand('copy')) done(); } catch (e) {}
-        document.body.removeChild(area);
-      }
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
-      else fallback();
+      copyText(btn.parentNode.querySelector('code').textContent, btn, 'Copy');
     });
   });
+  document.querySelectorAll('button.copy-name').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      copyText(btn.getAttribute('data-copy'), btn, 'Copy name');
+    });
+  });
+
   var box = document.getElementById('lightbox');
   document.querySelectorAll('.attachments img').forEach(function (img) {
     img.addEventListener('click', function () { box.querySelector('img').src = img.src; box.style.display = 'grid'; });
   });
   box.addEventListener('click', function () { box.style.display = 'none'; });
+
+  function move(step) {
+    var shown = visible();
+    if (!shown.length) return;
+    var active = document.activeElement;
+    var current = shown.indexOf(active && active.closest ? active.closest('details.test') : null);
+    var next = current === -1 ? shown[0] : shown[Math.max(0, Math.min(shown.length - 1, current + step))];
+    next.querySelector('summary').focus();
+    next.scrollIntoView({ block: 'nearest' });
+  }
   document.addEventListener('keydown', function (ev) {
-    if (ev.key === 'Escape') box.style.display = 'none';
-    if (ev.key === '/' && document.activeElement !== search) { ev.preventDefault(); search.focus(); }
+    var tag = document.activeElement ? document.activeElement.tagName : '';
+    var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(tag);
+    if (ev.key === 'Escape') {
+      box.style.display = 'none';
+      if (document.activeElement === search) { search.value = ''; apply(); search.blur(); }
+    }
+    if (typing || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    if (ev.key === '/') { ev.preventDefault(); search.focus(); }
+    else if (ev.key === 'j') { ev.preventDefault(); move(1); }
+    else if (ev.key === 'k') { ev.preventDefault(); move(-1); }
   });
-  var hashChip = { '#problems': 'problems', '#new-failures': 'new-failure' }[location.hash];
-  var chipEl = hashChip && document.querySelector('.chip[data-filter="' + hashChip + '"]');
-  if (chipEl) chipEl.click();
+
+  window.addEventListener('beforeprint', function () { tests.forEach(function (el) { el.open = true; }); });
+
+  var hashFilter = { '#problems': 'problems', '#new-failures': 'new-failure', '#passed': 'passed', '#failed': 'failed',
+                     '#error': 'error', '#skipped': 'skipped' }[location.hash];
+  if (hashFilter) setFilter(hashFilter, false);
+  else if (/^#t\d+$/.test(location.hash) && document.getElementById(location.hash.slice(1))) {
+    reveal(document.getElementById(location.hash.slice(1)));
+  }
 })();
 </script>
 </body>

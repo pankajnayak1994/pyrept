@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot generator="Robot 3.2.2 (Python 3.8.10 on linux)" generated="20261007 09:00:00.000" rpa="false">
+<suite id="s1" name="Shop" source="/home/ci/shop/tests">
+<suite id="s1-s1" name="Login" source="/home/ci/shop/tests/login.robot">
+<test id="s1-s1-t1" name="Valid Login">
+<kw name="Log" library="BuiltIn"><status status="PASS" starttime="20261007 09:00:00.001" endtime="20261007 09:00:00.002"></status></kw>
+<doc>User can sign in</doc>
+<tags><tag>smoke</tag></tags>
+<status status="PASS" starttime="20261007 09:00:00.000" endtime="20261007 09:00:00.250" critical="yes"></status>
+</test>
+<test id="s1-s1-t2" name="Wrong Password">
+<tags><tag>login</tag></tags>
+<status status="FAIL" starttime="20261007 09:00:00.300" endtime="20261007 09:00:01.300" critical="yes">expected banner: welcome != error</status>
+</test>
+<status status="FAIL" starttime="20261007 09:00:00.000" endtime="20261007 09:00:01.300"></status>
+</suite>
+<status status="FAIL" starttime="20261007 09:00:00.000" endtime="20261007 09:00:01.300"></status>
+</suite>
+<statistics></statistics>
+<errors></errors>
+</robot>

@@ -266,3 +266,39 @@ class BehaveFormatterUnitTests(unittest.TestCase):
         self.assertEqual(map_status('hook_error'), 'error')
         self.assertEqual(map_status('pending_warn'), 'skipped')
         self.assertEqual(map_status('something_new'), 'error')
+
+
+@unittest.skipUnless(HAS_BEHAVE, 'behave not installed')
+class BehaveSummaryTests(unittest.TestCase):
+    def test_markdown_and_github_summary_userdata(self):
+        import os
+        import shutil
+        import subprocess
+        import sys
+        import tempfile
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        os.makedirs(os.path.join(tmp, 'features', 'steps'))
+        with open(os.path.join(tmp, 'features', 'demo.feature'), 'w') as fh:
+            fh.write('Feature: Demo\n  Scenario: Failing\n    Given a step that fails\n')
+        with open(os.path.join(tmp, 'features', 'steps', 'steps.py'), 'w') as fh:
+            fh.write('from behave import given\n\n@given("a step that fails")\ndef bad(context):\n'
+                     '    assert False, "nope"\n')
+        summary = os.path.join(tmp, 'gh.md')
+        env = dict(os.environ, GITHUB_STEP_SUMMARY=summary)
+        subprocess.run([sys.executable, '-m', 'behave', '-f', 'pyrept.behave_formatter:PyreptFormatter',
+                        '-o', os.devnull, '-D', 'pyrept_json=out.json', '-D', 'pyrept_html=out.html',
+                        '-D', 'pyrept_markdown=out/summary.md', '-D', 'pyrept_github_summary=yes'],
+                       cwd=tmp, check=False, capture_output=True, env=env)
+        for path in (os.path.join(tmp, 'out', 'summary.md'), summary):
+            with open(path, encoding='utf-8') as fh:
+                text = fh.read()
+            self.assertIn('❌ BDD Test Report: 1 failed', text)
+            self.assertIn('Demo :: Failing', text)
+
+    def test_truthy(self):
+        from pyrept.behave_formatter import _truthy
+        for value in ('1', 'true', 'YES', ' on '):
+            self.assertTrue(_truthy(value))
+        for value in ('', '0', 'false', 'no', None):
+            self.assertFalse(_truthy(value))

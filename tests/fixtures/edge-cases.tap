@@ -1,0 +1,14 @@
+TAP version 14
+# a comment line
+1..6
+ok 1 - first
+ok - unnumbered
+not ok 3 - broken thing
+  ---
+  message: 'expected 1, got 2'
+  duration_ms: 1500
+  ...
+ok 4 # SKIP no network
+not ok 5 - flaky one # TODO fix later
+    # Subtest: nested
+    ok 1 - inner

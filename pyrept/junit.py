@@ -6,10 +6,11 @@ import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
+from .summary import failure_message as _message
+
 # Characters XML 1.0 does not allow (ANSI escape codes in tracebacks, NUL bytes, ...).
 _INVALID_XML = re.compile('[^\u0009\u000a\u000d -퟿-�\U00010000-\U0010ffff]')
 _DOTTED_ID = re.compile(r'^[A-Za-z_][\w]*(\.[A-Za-z_][\w]*)+$')
-_MESSAGE_LIMIT = 300
 
 
 def _clean(text):
@@ -41,9 +42,6 @@ def split_name(name):
     return '', name
 
 
-_EXCEPTION_LINE = re.compile(r'^[A-Za-z_][\w.]*(Error|Exception|Failure|Exit|Interrupt|Warning)\b')
-
-
 def _module(path):
     if path.endswith('.py'):
         path = path[:-3]
@@ -52,22 +50,6 @@ def _module(path):
 
 def _property_value(value):
     return str(value).lower() if isinstance(value, bool) else _clean(value)
-
-
-def _message(traceback):
-    """The most useful single line of a traceback, for the ``message`` attribute."""
-    lines = [line.strip() for line in (traceback or '').splitlines() if line.strip()]
-    if not lines:
-        return ''
-    pytest_lines = [line[1:].strip() for line in lines if line.startswith('E ')]  # pytest's "E   assert ..."
-    exception_lines = [line for line in lines if _EXCEPTION_LINE.match(line)]  # "ValueError: bad value"
-    if pytest_lines:
-        message = pytest_lines[0]
-    elif exception_lines:
-        message = exception_lines[-1]
-    else:
-        message = lines[0]
-    return message[:_MESSAGE_LIMIT]
 
 
 def _seconds(result):

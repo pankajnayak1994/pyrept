@@ -1,0 +1,17 @@
+name: Feature request
+description: A new integration, converter, report feature or CI integration.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would it solve?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like pyrept to do?
+      description: For a new converter, link to the format's documentation or attach a sample file.
+    validations:
+      required: true

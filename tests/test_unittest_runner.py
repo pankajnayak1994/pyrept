@@ -234,3 +234,93 @@ class UnittestJUnitAndBaselineTests(unittest.TestCase):
         finally:
             os.chdir(cwd)
         self.assertTrue(os.path.exists(junit))
+
+
+class UnittestSummaryAndGateTests(unittest.TestCase):
+    KNOWN = '''
+        import unittest
+        class T(unittest.TestCase):
+            def test_ok(self):
+                pass
+            def test_known_bug(self):
+                self.assertEqual(1, 2)
+    '''
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.mod = 'test_gate_%s' % uuid.uuid4().hex[:8]
+
+    def _write(self, body):
+        with open(os.path.join(self.tmp, self.mod + '.py'), 'w') as fh:
+            fh.write(textwrap.dedent(body))
+        sys.modules.pop(self.mod, None)
+
+    def _main(self, *args):
+        """Run main() like the command line; returns (exit code, output)."""
+        stream = io.StringIO()
+        cwd = os.getcwd()
+        os.chdir(self.tmp)
+        try:
+            argv = ['prog', 'discover', '-p', self.mod + '.py',
+                    '--pyrept-json', os.path.join(self.tmp, 'r.json'),
+                    '--pyrept-html', os.path.join(self.tmp, 'r.html')] + list(args)
+            stderr, sys.stderr = sys.stderr, stream
+            try:
+                with self.assertRaises(SystemExit) as raised:
+                    main(argv)
+            finally:
+                sys.stderr = stderr
+        finally:
+            os.chdir(cwd)
+        code = raised.exception.code
+        return (int(code) if code not in (None, True, False) else int(bool(code))), stream.getvalue()
+
+    def test_markdown_and_github_summary(self):
+        self._write(self.KNOWN)
+        summary = os.path.join(self.tmp, 'gh.md')
+        os.environ['GITHUB_STEP_SUMMARY'] = summary  # removed again by the conftest fixture
+        try:
+            code, out = self._main('--pyrept-markdown', os.path.join(self.tmp, 'md', 's.md'), '--pyrept-github-summary')
+        finally:
+            del os.environ['GITHUB_STEP_SUMMARY']
+        self.assertEqual(code, 1)
+        self.assertIn('pyrept Markdown summary:', out)
+        for path in (os.path.join(self.tmp, 'md', 's.md'), summary):
+            with open(path, encoding='utf-8') as fh:
+                self.assertIn('❌ Test Report: 1 failed', fh.read())
+
+    def test_ignore_known_failures_and_fail_under(self):
+        self._write(self.KNOWN)
+        self.assertEqual(self._main()[0], 1)
+        baseline = '--pyrept-baseline=' + os.path.join(self.tmp, 'r.json')
+        code, out = self._main(baseline, '--pyrept-ignore-known-failures')
+        self.assertEqual(code, 0, out)
+        self.assertIn('pyrept: 1 known failure ignored', out)
+        code, out = self._main(baseline, '--pyrept-ignore-known-failures', '--pyrept-fail-under', '75')
+        self.assertEqual(code, 1, out)
+        self.assertIn('pass rate 50.0% is below --pyrept-fail-under=75', out)
+
+        self._write(self.KNOWN + '''
+            def test_new_bug(self):
+                raise RuntimeError("new")
+        ''')
+        code, out = self._main(baseline, '--pyrept-ignore-known-failures')
+        self.assertEqual(code, 1, out)
+        with open(os.path.join(self.tmp, 'r.json'), encoding='utf-8') as fh:
+            self.assertEqual(json.load(fh)['comparison']['new_failures'], ['%s.T.test_new_bug' % self.mod])
+
+    def test_invalid_fail_under(self):
+        self._write(self.KNOWN)
+        code, out = self._main('--pyrept-fail-under=high')
+        self.assertEqual(code, 2)
+        self.assertIn('fail-under must be a number', out)
+
+    def test_runner_api_validates_fail_under(self):
+        with self.assertRaises(ValueError):
+            PyreptTestRunner(stream=io.StringIO(), fail_under=150)
+
+    def test_pop_flag(self):
+        from pyrept.unittest_runner import _pop_flag
+        self.assertEqual(_pop_flag(['p', '--f', 'a', '--f'], '--f'), (True, ['p', 'a']))
+        self.assertEqual(_pop_flag(['p', '--fx'], '--f'), (False, ['p', '--fx']))

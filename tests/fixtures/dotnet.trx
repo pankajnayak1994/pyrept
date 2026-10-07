@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="5b3f0b1e-0000-4000-8000-000000000001" name="ci@runner 2026-10-07 09:00:00" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-07T09:00:00.0000000+00:00" start="2026-10-07T09:00:00.0000000+00:00" finish="2026-10-07T09:00:05.0000000+00:00" />
+  <TestSettings name="default" id="5b3f0b1e-0000-4000-8000-000000000002">
+    <Deployment runDeploymentRoot="ci_runner_2026-10-07_09_00_00" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="e0000000-0000-4000-8000-000000000001" testId="t0000000-0000-4000-8000-000000000001" testName="AddsItem" computerName="runner" duration="00:00:00.0123456" outcome="Passed" testListId="l1" />
+    <UnitTestResult executionId="e0000000-0000-4000-8000-000000000002" testId="t0000000-0000-4000-8000-000000000002" testName="ComputesTotal" computerName="runner" duration="00:00:01.5000000" outcome="Failed" testListId="l1">
+      <Output>
+        <StdOut>computing total</StdOut>
+        <ErrorInfo>
+          <Message>Assert.AreEqual failed. Expected:&lt;85&gt;. Actual:&lt;90&gt;.</Message>
+          <StackTrace>   at Shop.Tests.CartTests.ComputesTotal() in /src/CartTests.cs:line 21</StackTrace>
+        </ErrorInfo>
+      </Output>
+      <ResultFiles>
+        <ResultFile path="screenshot.png" />
+      </ResultFiles>
+    </UnitTestResult>
+    <UnitTestResult executionId="e0000000-0000-4000-8000-000000000003" testId="t0000000-0000-4000-8000-000000000003" testName="Refund" computerName="runner" duration="00:00:00" outcome="NotExecuted" testListId="l1">
+      <Output><ErrorInfo><Message>Payment sandbox offline</Message></ErrorInfo></Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="e0000000-0000-4000-8000-000000000004" testId="t0000000-0000-4000-8000-000000000004" testName="Checkout" computerName="runner" duration="00:00:30.0000000" outcome="Timeout" testListId="l1" />
+    <UnitTestResult executionId="e0000000-0000-4000-8000-000000000005" testId="t0000000-0000-4000-8000-000000000005" testName="Quantity" computerName="runner" duration="00:00:00.2000000" outcome="Failed" testListId="l1" resultType="DataDrivenTest">
+      <InnerResults>
+        <UnitTestResult executionId="e0000000-0000-4000-8000-000000000006" parentExecutionId="e0000000-0000-4000-8000-000000000005" testId="t0000000-0000-4000-8000-000000000005" testName="Quantity (1)" computerName="runner" duration="00:00:00.1000000" outcome="Passed" testListId="l1" resultType="DataDrivenDataRow" />
+        <UnitTestResult executionId="e0000000-0000-4000-8000-000000000007" parentExecutionId="e0000000-0000-4000-8000-000000000005" testId="t0000000-0000-4000-8000-000000000005" testName="Quantity (2)" computerName="runner" duration="00:00:00.1000000" outcome="Failed" testListId="l1" resultType="DataDrivenDataRow">
+          <Output><ErrorInfo><Message>Expected 1 but was 2</Message></ErrorInfo></Output>
+        </UnitTestResult>
+      </InnerResults>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="AddsItem" id="t0000000-0000-4000-8000-000000000001"><TestMethod codeBase="Shop.Tests.dll" className="Shop.Tests.CartTests, Shop.Tests, Version=1.0.0.0" name="AddsItem" /></UnitTest>
+    <UnitTest name="ComputesTotal" id="t0000000-0000-4000-8000-000000000002"><TestMethod codeBase="Shop.Tests.dll" className="Shop.Tests.CartTests" name="ComputesTotal" /></UnitTest>
+    <UnitTest name="Refund" id="t0000000-0000-4000-8000-000000000003"><TestMethod codeBase="Shop.Tests.dll" className="Shop.Tests.PaymentTests" name="Refund" /></UnitTest>
+    <UnitTest name="Checkout" id="t0000000-0000-4000-8000-000000000004"><TestMethod codeBase="Shop.Tests.dll" className="Shop.Tests.PaymentTests" name="Checkout" /></UnitTest>
+    <UnitTest name="Quantity" id="t0000000-0000-4000-8000-000000000005"><TestMethod codeBase="Shop.Tests.dll" className="Shop.Tests.CartTests" name="Quantity" /></UnitTest>
+  </TestDefinitions>
+</TestRun>

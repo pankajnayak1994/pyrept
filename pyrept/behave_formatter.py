@@ -21,6 +21,8 @@ or register it once in ``behave.ini``::
     pyrept_json = reports/report.json
     pyrept_junit = reports/junit.xml          # optional: JUnit XML as well
     pyrept_baseline = reports/report.json     # optional: compare with the previous run
+    pyrept_markdown = reports/summary.md      # optional: Markdown summary
+    pyrept_github_summary = true              # optional: GitHub Actions job summary
 
 and run ``behave -f pyrept -o /dev/null -f pretty``. behave pairs each ``-o`` with the
 ``-f`` before it, so keep ``-f pyrept -o /dev/null`` first or the console output is lost.
@@ -51,6 +53,10 @@ def _status_name(status):
     return getattr(status, 'name', status) or 'untested'
 
 
+def _truthy(value):
+    return str(value).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
 def map_status(status):
     return _STATUS_MAP.get(str(_status_name(status)).lower(), 'error')
 
@@ -72,6 +78,9 @@ class PyreptFormatter(Formatter):
         junit, baseline = userdata.get('pyrept_junit'), userdata.get('pyrept_baseline')
         self.junit_path = os.path.realpath(junit) if junit else None
         self.baseline_path = os.path.realpath(baseline) if baseline else None
+        markdown = userdata.get('pyrept_markdown')
+        self.markdown_path = os.path.realpath(markdown) if markdown else None
+        self.github_summary = _truthy(userdata.get('pyrept_github_summary', ''))
         import behave
         self.collector = ReportCollector(title=userdata.get('pyrept_title', 'BDD Test Report'),
                                          environment={'Framework': 'behave %s' % getattr(behave, '__version__', '')})
@@ -103,7 +112,8 @@ class PyreptFormatter(Formatter):
     def close(self):
         self._flush()
         self.collector.write(html_path=self.html_path, json_path=self.json_path,
-                             junit_path=self.junit_path, baseline_path=self.baseline_path)
+                             junit_path=self.junit_path, baseline_path=self.baseline_path,
+                             markdown_path=self.markdown_path, github_summary=self.github_summary)
         super().close()
 
     # ------------------------------------------------------------------------

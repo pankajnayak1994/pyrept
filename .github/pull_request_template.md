@@ -21,10 +21,13 @@ Example: [MINOR] Add pytest-xdist support
 - [ ] unittest runner
 - [ ] nose2 plugin
 - [ ] behave formatter
-- [ ] `pyrept convert` (Cucumber / Playwright)
-- [ ] HTML template
+- [ ] `pyrept convert` (converters in `pyrept/importers/`)
+- [ ] `pyrept summary` / `pyrept history`, quality gates or notifications
+- [ ] GitHub Action (`action.yml`)
+- [ ] HTML templates (report, history)
 - [ ] JSON report format
-- [ ] Python API (`ReportCollector`, `make_attachment`)
+- [ ] Python API (`ReportCollector`, `make_attachment`) or pytest hooks
+- [ ] Docs site
 
 ## How was this tested?
 <!-- Commands run, Python versions used, and screenshots of the HTML report if the template changed. -->

@@ -7,6 +7,7 @@ Command line (same arguments as ``python -m unittest``)::
     python -m pyrept.unittest_runner tests.test_module --pyrept-html=reports/report.html
     python -m pyrept.unittest_runner discover -s tests --pyrept-title "Nightly run"
     python -m pyrept.unittest_runner discover -s tests --pyrept-junit=junit.xml --pyrept-baseline=report.json
+    python -m pyrept.unittest_runner discover -s tests --pyrept-github-summary --pyrept-fail-under 95
 
 In code::
 
@@ -23,6 +24,10 @@ import unittest
 
 from .compare import summary_line
 from .report import DEFAULT_HTML_REPORT_PATH, DEFAULT_JSON_REPORT_PATH, ReportCollector
+from .summary import evaluate_gates, parse_fail_under
+
+_GATE_OPTION_NAMES = {'fail_under': '--pyrept-fail-under', 'ignore_known_failures': '--pyrept-ignore-known-failures',
+                      'baseline': '--pyrept-baseline'}
 
 
 def _test_name(test):
@@ -41,6 +46,11 @@ class PyreptTestResult(unittest.TextTestResult):
         super().__init__(stream, descriptions, verbosity, **kwargs)
         self.collector = collector if collector is not None else ReportCollector()
         self._start_times = {}
+        self.pyrept_gate = None  # set by PyreptTestRunner once the report is written
+
+    def wasSuccessful(self):
+        passed = super().wasSuccessful()
+        return self.pyrept_gate.successful(passed) if self.pyrept_gate is not None else passed
 
     def startTest(self, test):
         self._start_times[test.id()] = time.perf_counter()
@@ -115,12 +125,17 @@ class PyreptTestRunner(unittest.TextTestRunner):
     resultclass = PyreptTestResult
 
     def __init__(self, *args, html_path=DEFAULT_HTML_REPORT_PATH, json_path=DEFAULT_JSON_REPORT_PATH,
-                 title='Test Report', junit_path=None, baseline_path=None, **kwargs):
+                 title='Test Report', junit_path=None, baseline_path=None, markdown_path=None,
+                 github_summary=False, fail_under=None, ignore_known_failures=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.html_path = os.path.realpath(html_path)
         self.json_path = os.path.realpath(json_path)
         self.junit_path = os.path.realpath(junit_path) if junit_path else None
         self.baseline_path = os.path.realpath(baseline_path) if baseline_path else None
+        self.markdown_path = os.path.realpath(markdown_path) if markdown_path else None
+        self.github_summary = github_summary
+        self.fail_under = parse_fail_under(fail_under)
+        self.ignore_known_failures = ignore_known_failures
         self.collector = ReportCollector(title=title, environment={'Framework': 'unittest'})
 
     def _makeResult(self):
@@ -132,13 +147,22 @@ class PyreptTestRunner(unittest.TextTestRunner):
     def run(self, test):
         result = super().run(test)
         context = self.collector.write(html_path=self.html_path, json_path=self.json_path,
-                                       junit_path=self.junit_path, baseline_path=self.baseline_path)
+                                       junit_path=self.junit_path, baseline_path=self.baseline_path,
+                                       markdown_path=self.markdown_path, github_summary=self.github_summary)
         self.stream.writeln('pyrept HTML report: %s' % self.html_path)
         self.stream.writeln('pyrept JSON report: %s' % self.json_path)
         if self.junit_path:
             self.stream.writeln('pyrept JUnit report: %s' % self.junit_path)
+        if self.markdown_path:
+            self.stream.writeln('pyrept Markdown summary: %s' % self.markdown_path)
         if context['comparison']:
             self.stream.writeln('pyrept: %s' % summary_line(context['comparison']))
+        if self.fail_under is not None or self.ignore_known_failures:
+            result.pyrept_gate = evaluate_gates(context, fail_under=self.fail_under,
+                                                ignore_known_failures=self.ignore_known_failures,
+                                                option_names=_GATE_OPTION_NAMES)
+            for message in result.pyrept_gate.messages:
+                self.stream.writeln('pyrept: %s' % message)
         self.stream.flush()
         return result
 
@@ -161,6 +185,12 @@ def _pop_option(argv, flag, default):
     return value, rest
 
 
+def _pop_flag(argv, flag):
+    """Remove every ``--flag`` from argv; return whether it was there."""
+    rest = [arg for arg in argv if arg != flag]
+    return len(rest) != len(argv), rest
+
+
 def main(argv=None):
     argv = list(sys.argv if argv is None else argv) or ['']
     html_path, argv = _pop_option(argv, '--pyrept-html', DEFAULT_HTML_REPORT_PATH)
@@ -168,6 +198,15 @@ def main(argv=None):
     title, argv = _pop_option(argv, '--pyrept-title', 'Test Report')
     junit_path, argv = _pop_option(argv, '--pyrept-junit', None)
     baseline_path, argv = _pop_option(argv, '--pyrept-baseline', None)
+    markdown_path, argv = _pop_option(argv, '--pyrept-markdown', None)
+    fail_under, argv = _pop_option(argv, '--pyrept-fail-under', None)
+    github_summary, argv = _pop_flag(argv, '--pyrept-github-summary')
+    ignore_known_failures, argv = _pop_flag(argv, '--pyrept-ignore-known-failures')
+    try:
+        fail_under = parse_fail_under(fail_under)
+    except ValueError as exc:
+        print('pyrept: %s' % exc, file=sys.stderr)
+        raise SystemExit(2)
 
     class _ConfiguredRunner(PyreptTestRunner):
         # unittest.main instantiates the runner class itself, passing
@@ -178,6 +217,10 @@ def main(argv=None):
             kwargs.setdefault('title', title)
             kwargs.setdefault('junit_path', junit_path)
             kwargs.setdefault('baseline_path', baseline_path)
+            kwargs.setdefault('markdown_path', markdown_path)
+            kwargs.setdefault('github_summary', github_summary)
+            kwargs.setdefault('fail_under', fail_under)
+            kwargs.setdefault('ignore_known_failures', ignore_known_failures)
             super().__init__(*args, **kwargs)
 
     argv[0] = 'python -m pyrept.unittest_runner'

@@ -1,0 +1,127 @@
+name: pyrept test report
+description: Test results as a GitHub job summary and pull request comment, with new failures, flaky-test gates and an HTML report.
+author: Pankaj Kumar Nayak
+branding:
+  icon: check-circle
+  color: blue
+
+inputs:
+  report:
+    description: pyrept JSON report to summarise (written by `pytest --pyrept`, `pyrept convert`, ...).
+    default: report.json
+  convert-from:
+    description: Convert another tool's report first; one of allure, cucumber, junit, nunit, playwright, pyrept, pytest-json, robot, tap, trx, xunit.
+    default: ''
+  convert-inputs:
+    description: With convert-from, the files to convert; space-separated paths or glob patterns.
+    default: ''
+  html:
+    description: With convert-from, where to write the HTML report (default next to the JSON report).
+    default: ''
+  junit:
+    description: With convert-from, also write JUnit XML to this path.
+    default: ''
+  baseline:
+    description: With convert-from, an earlier pyrept JSON report to compare with.
+    default: ''
+  title:
+    description: With convert-from, the report title.
+    default: ''
+  job-summary:
+    description: Add the summary to the job summary page.
+    default: 'true'
+  pr-comment:
+    description: Post the summary as a pull request comment and update it on every run (needs `pull-requests write`).
+    default: 'true'
+  fail-on-failure:
+    description: Fail the step when a test failed or errored.
+    default: 'false'
+  ignore-known-failures:
+    description: With fail-on-failure, only fail when a test fails that did not fail in the baseline.
+    default: 'false'
+  fail-under:
+    description: Fail the step when the pass rate (in percent) is below this value.
+    default: ''
+  report-url:
+    description: Link to the published HTML report, shown in the summary and comment.
+    default: ''
+  notify:
+    description: Also send the Slack / Teams / webhook notifications configured with PYREPT_* environment variables.
+    default: 'false'
+  version:
+    description: pyrept version to install (default the latest release).
+    default: ''
+
+outputs:
+  total:
+    description: Number of tests.
+    value: ${{ steps.summary.outputs.total }}
+  passed:
+    description: Passed tests.
+    value: ${{ steps.summary.outputs.passed }}
+  failed:
+    description: Failed tests.
+    value: ${{ steps.summary.outputs.failed }}
+  errors:
+    description: Tests with errors.
+    value: ${{ steps.summary.outputs.errors }}
+  skipped:
+    description: Skipped tests.
+    value: ${{ steps.summary.outputs.skipped }}
+  pass-rate:
+    description: Pass rate in percent (skipped tests excluded).
+    value: ${{ steps.summary.outputs.pass-rate }}
+  new-failures:
+    description: Tests that fail now but did not in the baseline.
+    value: ${{ steps.summary.outputs.new-failures }}
+
+runs:
+  using: composite
+  steps:
+    - name: Summarise test results
+      id: summary
+      shell: bash
+      run: bash "$GITHUB_ACTION_PATH/action/pyrept-action.sh"
+      env:
+        PYREPT_INPUT_REPORT: ${{ inputs.report }}
+        PYREPT_INPUT_CONVERT_FROM: ${{ inputs.convert-from }}
+        PYREPT_INPUT_CONVERT_INPUTS: ${{ inputs.convert-inputs }}
+        PYREPT_INPUT_HTML: ${{ inputs.html }}
+        PYREPT_INPUT_JUNIT: ${{ inputs.junit }}
+        PYREPT_INPUT_BASELINE: ${{ inputs.baseline }}
+        PYREPT_INPUT_TITLE: ${{ inputs.title }}
+        PYREPT_INPUT_JOB_SUMMARY: ${{ inputs.job-summary }}
+        PYREPT_INPUT_FAIL_ON_FAILURE: ${{ inputs.fail-on-failure }}
+        PYREPT_INPUT_IGNORE_KNOWN_FAILURES: ${{ inputs.ignore-known-failures }}
+        PYREPT_INPUT_FAIL_UNDER: ${{ inputs.fail-under }}
+        PYREPT_INPUT_REPORT_URL: ${{ inputs.report-url }}
+        PYREPT_INPUT_NOTIFY: ${{ inputs.notify }}
+        PYREPT_INPUT_VERSION: ${{ inputs.version }}
+
+    - name: Comment on the pull request
+      if: inputs.pr-comment == 'true' && github.event.pull_request.number && steps.summary.outputs.summary-file != ''
+      continue-on-error: true  # forks and read-only tokens cannot comment; that must not fail the job
+      uses: actions/github-script@v7
+      env:
+        SUMMARY_FILE: ${{ steps.summary.outputs.summary-file }}
+      with:
+        script: |
+          const fs = require('fs');
+          const marker = '<!-- pyrept-report -->';
+          const body = marker + '\n' + fs.readFileSync(process.env.SUMMARY_FILE, 'utf8');
+          const { owner, repo } = context.repo;
+          const issue_number = context.payload.pull_request.number;
+          const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number, per_page: 100 });
+          const mine = comments.find(c => c.body && c.body.startsWith(marker));
+          if (mine) {
+            await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+          } else {
+            await github.rest.issues.createComment({ owner, repo, issue_number, body });
+          }
+
+    - name: Apply quality gates
+      if: steps.summary.outputs.gate-status != '0'
+      shell: bash
+      run: |
+        echo "::error::pyrept quality gate failed (see the job summary)"
+        exit 1

@@ -9,9 +9,12 @@ import os
 import platform
 from datetime import datetime, timezone
 
+from .branding import branding_from_env
 from .compare import compare, load_baseline
 from .junit import write_junit
+from .notify import send_notifications
 from .render import load_template, render_template
+from .summary import failure_groups, report_url_from_env, write_github_summary, write_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -100,17 +103,22 @@ class ReportCollector:
                              environment=self.environment, baseline=baseline)
 
     def write(self, html_path=DEFAULT_HTML_REPORT_PATH, json_path=DEFAULT_JSON_REPORT_PATH,
-              template_path=DEFAULT_TEMPLATE_PATH, junit_path=None, baseline_path=None):
+              template_path=DEFAULT_TEMPLATE_PATH, junit_path=None, baseline_path=None,
+              markdown_path=None, github_summary=False, report_url=None):
         """
         Write the reports and return the context.
 
         ``junit_path`` also writes a JUnit XML report. ``baseline_path`` compares the
         run with an earlier pyrept JSON report; it is read before anything is
-        written, so it may be the same file as ``json_path``.
+        written, so it may be the same file as ``json_path``. ``markdown_path``
+        writes a Markdown summary, and ``github_summary`` appends it to the GitHub
+        Actions job summary. ``report_url`` (default: ``$PYREPT_REPORT_URL``) links
+        the published HTML report from the summary and notifications.
         """
         context = self.context(baseline=load_baseline(baseline_path))
         write_reports(context, html_path=html_path, json_path=json_path, template_path=template_path,
-                      junit_path=junit_path)
+                      junit_path=junit_path, markdown_path=markdown_path, github_summary=github_summary,
+                      report_url=report_url)
         return context
 
 
@@ -165,6 +173,7 @@ def build_context(summary_stats, test_results, title='Test Report', environment=
         'environment': env,
         'slowest_tests': [{'name': r['name'], 'duration': r['metadata']['duration']} for r in slowest],
         'comparison': compare(test_results, baseline, current_percentage=stats['percentage']),
+        'failure_groups': failure_groups(test_results),
     }
 
 
@@ -190,10 +199,16 @@ def _ensure_parent_dir(path):
         os.makedirs(parent, exist_ok=True)
 
 
-def write_reports(context, html_path, json_path, template_path=DEFAULT_TEMPLATE_PATH, junit_path=None):
-    """Render the HTML report, dump the JSON report and optionally write JUnit XML."""
+def write_reports(context, html_path, json_path, template_path=DEFAULT_TEMPLATE_PATH, junit_path=None,
+                  markdown_path=None, github_summary=False, notify=True, report_url=None):
+    """
+    Render the HTML report and dump the JSON report. Optionally write JUnit XML
+    and a Markdown summary, append the summary to the GitHub Actions job
+    summary, and send the notifications configured in the environment
+    (see :mod:`pyrept.notify`).
+    """
     template = load_template(template_path)
-    rendered = render_template(template, context)
+    rendered = render_template(template, dict(context, branding=branding_from_env()))
     _ensure_parent_dir(html_path)
     with open(html_path, 'w', encoding='utf-8') as fh:
         fh.write(rendered)
@@ -206,3 +221,10 @@ def write_reports(context, html_path, json_path, template_path=DEFAULT_TEMPLATE_
         _ensure_parent_dir(junit_path)
         write_junit(context, junit_path)
         logger.info("junit report generated at : %s", junit_path)
+    report_url = report_url or report_url_from_env()
+    if markdown_path:
+        write_markdown(context, markdown_path, report_url=report_url)
+    if github_summary:
+        write_github_summary(context, report_url=report_url)
+    if notify:
+        send_notifications(context, report_url=report_url)
