@@ -1,4 +1,4 @@
-name: pyrept test report
+name: pyrept
 description: Test results as a GitHub job summary and pull request comment, with new failures, flaky-test gates and an HTML report.
 author: Pankaj Kumar Nayak
 branding:
