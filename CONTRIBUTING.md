@@ -55,6 +55,8 @@ Releases are fully automated. When a pull request is merged into `master`, `.git
 4. creates the GitHub release with generated notes and the built files;
 5. publishes the `pytest-pyrept` alias package with the same version.
 
+A release you publish yourself in the GitHub UI (for example to update the Marketplace listing) is handled by the same workflow: it runs the tests, moves the major tag and uploads that version to PyPI and `pytest-pyrept`. Create it on a **new** version tag such as `v1.4.0`: the repository uses immutable releases, so a tag that once had a release can never get another one, even after deleting it.
+
 Pull requests titled `[SKIP] ...` or labelled `skip-release` (Dependabot's weekly action updates) are merged without a release. The docs site and live demo redeploy on every push to `master` (`.github/workflows/docs.yml`), and `.github/workflows/test-action.yml` tests the GitHub Action itself on every pull request.
 
 One-time setup that cannot be automated:
