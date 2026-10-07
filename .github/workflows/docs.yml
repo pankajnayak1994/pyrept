@@ -38,7 +38,7 @@ jobs:
       - name: Build the live demo
         run: python docs/demo/make_demo.py site/demo
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
