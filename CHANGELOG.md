@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased (1.3.0)
+## Unreleased
+
+### Changed
+- Releases are fully automated: each merged pull request also moves the `v1` tag for the GitHub Action, creates the GitHub release and publishes the `pytest-pyrept` alias package. `[SKIP]` titles or the `skip-release` label merge without a release.
+- The GitHub Action is tested on every pull request (`.github/workflows/action.yml`), and Dependabot keeps the workflows' actions up to date.
+- Examples use `pankajnayak1994/pyrept@v1` instead of `@master`.
+
+## 1.3.0
 
 ### Added
 - **GitHub job summaries and Markdown summaries** from every integration: `--pyrept-markdown` / `--pyrept-github-summary` (pytest, unittest), `markdown-report-path` / `github-summary` (nose2), `pyrept_markdown` / `pyrept_github_summary` (behave), `--markdown` / `--github-summary` (convert). Output stays far below GitHub's 1 MiB limit.

@@ -1,7 +1,7 @@
 <!--
 PR title must start with the version bump. The publish workflow reads it on merge:
   [MAJOR] breaking change   ·   [MINOR] new feature   ·   [PATCH] bug fix / docs / CI
-No prefix defaults to [PATCH].
+No prefix defaults to [PATCH]. [SKIP] (or the skip-release label) merges without a release.
 Example: [MINOR] Add pytest-xdist support
 -->
 
