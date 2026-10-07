@@ -5,6 +5,11 @@ on:
     types: [closed]
     branches:
       - master
+  # A release published by hand in the GitHub UI (needed to update the GitHub Marketplace
+  # listing) is uploaded to PyPI as well. Releases created by the "release" job below use
+  # GITHUB_TOKEN, which never triggers workflows, so nothing is published twice.
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -15,6 +20,7 @@ jobs:
     # Every merged pull request is released, except ones labelled "skip-release" or titled "[SKIP] ..."
     # (Dependabot's CI-only updates use the label).
     if: >-
+      github.event_name == 'pull_request' &&
       github.event.pull_request.merged == true &&
       !contains(github.event.pull_request.labels.*.name, 'skip-release') &&
       !startsWith(github.event.pull_request.title, '[SKIP]')
@@ -136,5 +142,63 @@ jobs:
           python -m build packaging/pytest-pyrept --outdir alias-dist
           twine upload alias-dist/* --verbose || {
             echo "::warning::pytest-pyrept was not published; add the PyPI trusted publisher (see publish.yml)"
+            exit 1
+          }
+
+  release-from-ui:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0  # setuptools_scm reads the version from the tag
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Check the tag is a version
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::release tag $tag is not a version like v1.2.3; nothing is published"
+            exit 1
+          fi
+
+      - name: Run tests before publishing
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+          python -m pytest
+
+      - name: Move the major version tag (v1, v2, ...) used by the GitHub Action
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          git tag -f "${tag%%.*}" "$tag"
+          git push -f origin "refs/tags/${tag%%.*}"
+
+      - name: Build distribution
+        run: |
+          pip install build twine
+          python -m build
+
+      - name: Upload to PyPI
+        run: twine upload dist/* --verbose
+
+      - name: Publish the pytest-pyrept alias package
+        continue-on-error: true
+        run: |
+          version="${{ github.event.release.tag_name }}"
+          version="${version#v}"
+          sed -i -E "s/^version = \".*\"/version = \"$version\"/; s/\"pyrept>=[^\"]*\"/\"pyrept>=$version\"/" \
+            packaging/pytest-pyrept/pyproject.toml
+          python -m build packaging/pytest-pyrept --outdir alias-dist
+          twine upload alias-dist/* --verbose || {
+            echo "::warning::pytest-pyrept was not published; add the PyPI trusted publisher (see the release job)"
             exit 1
           }
