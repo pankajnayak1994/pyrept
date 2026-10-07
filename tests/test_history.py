@@ -160,3 +160,16 @@ class HistoryCommandTests(unittest.TestCase):
         code, _, err = self._run('history', self.dir, '--html', os.path.join(self.tmp, 'y.html'))
         self.assertEqual(code, 0)
         self.assertIn('skipped', err)
+
+
+class HistoryPageBrandingTests(unittest.TestCase):
+    def test_logo_and_signature(self):
+        from pyrept.history import write_history
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        path = os.path.join(tmp, 'h.html')
+        write_history(build_history([]), html_path=path)
+        with open(path, encoding='utf-8') as fh:
+            html = fh.read()
+        self.assertIn('<link rel="icon" href="data:image/jpeg;base64,', html)
+        self.assertIn('Pankaj Kumar Nayak', html)

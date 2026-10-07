@@ -62,8 +62,20 @@ def _add_gate_options(parser):
                         help='Exit with status 1 if the pass rate is below PERCENT.')
 
 
+def _version_text():
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+        number = version('pyrept')
+    except (ImportError, PackageNotFoundError):  # pragma: no cover - running from a plain source checkout
+        number = 'unknown'
+    return 'pyrept %s, developed by Pankaj Kumar Nayak' % number
+
+
 def build_parser():
-    parser = argparse.ArgumentParser(prog='pyrept', description='Searchable HTML and JSON test reports.')
+    parser = argparse.ArgumentParser(prog='pyrept', description='Searchable HTML and JSON test reports.',
+                                     epilog='Developed by Pankaj Kumar Nayak: '
+                                            'https://github.com/pankajnayak1994/pyrept')
+    parser.add_argument('--version', action='version', version=_version_text())
     sub = parser.add_subparsers(dest='command')
     sub.required = True
 

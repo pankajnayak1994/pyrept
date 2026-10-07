@@ -52,7 +52,8 @@ code, pre, .mono { font-family: var(--mono); }
 .topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 52px; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: .01em; color: var(--ink-text);
   text-decoration: none; font-size: 15px; }
-.brand img { height: 26px; max-width: 160px; object-fit: contain; }
+.brand img { height: 32px; max-width: 180px; object-fit: contain; border-radius: 8px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
 .mark { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center;
   background: linear-gradient(135deg, var(--accent), #22d3ee); box-shadow: 0 0 0 1px rgba(255,255,255,.15) inset; }
 .mark svg { width: 14px; height: 14px; }
@@ -158,6 +159,7 @@ details.list li { padding: 2px 0; overflow-wrap: anywhere; }
 .empty-note { color: var(--muted); font-size: 13px; padding: 6px 0; }
 footer.page { padding: 24px 0 40px; color: var(--faint); font-size: 12px; text-align: center; }
 footer.page a { color: var(--muted); }
+footer.page .sig a { font-weight: 600; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 @media print {

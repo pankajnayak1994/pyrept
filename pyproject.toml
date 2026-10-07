@@ -12,6 +12,9 @@ license = {text = "MIT"}
 authors = [
     {name = "Pankaj Kumar Nayak", email = "nayakpankaj2015@gmail.com"},
 ]
+maintainers = [
+    {name = "Pankaj Kumar Nayak", email = "nayakpankaj2015@gmail.com"},
+]
 dependencies = [
     "jinja2",
 ]
@@ -96,7 +99,7 @@ include-package-data = false
 include = ["pyrept", "pyrept.*"]
 
 [tool.setuptools.package-data]
-pyrept = ["templates/*.html", "templates/*.css"]
+pyrept = ["templates/*.html", "templates/*.css", "assets/*"]
 
 [tool.setuptools_scm]
 

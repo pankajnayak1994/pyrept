@@ -1,5 +1,9 @@
 # pyrept: one HTML, JSON and JUnit test report for every test framework
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pankajnayak1994/pyrept/master/docs/images/logo.jpg" alt="pyrept: a Python snake with HTML, JSON and JUnit reports" width="440">
+</p>
+
 [![Tests](https://github.com/pankajnayak1994/pyrept/actions/workflows/codecov.yml/badge.svg)](https://github.com/pankajnayak1994/pyrept/actions/workflows/codecov.yml)
 [![codecov](https://codecov.io/gh/pankajnayak1994/pyrept/graph/badge.svg?token=M0KTUAOO4V)](https://codecov.io/gh/pankajnayak1994/pyrept)
 [![PyPI](https://img.shields.io/pypi/v/pyrept)](https://pypi.org/project/pyrept/)
@@ -580,8 +584,11 @@ Links that open the report with a filter already applied: `report.html#problems`
 
 ## Branding
 
+Reports show the pyrept logo in the header and as the browser tab icon. Use your own, or none:
+
 ```bash
 export PYREPT_LOGO=branding/logo.svg       # image file (embedded, up to 1 MB) or https:// URL
+export PYREPT_LOGO=none                    # no logo
 export PYREPT_ACCENT_COLOR="#0f766e"       # hex colour
 ```
 
@@ -704,6 +711,10 @@ python docs/demo/make_demo.py site/demo        # demo reports (add --screenshots
 
 See [CONTRIBUTING.md](https://github.com/pankajnayak1994/pyrept/blob/master/CONTRIBUTING.md). Changes are listed in [CHANGELOG.md](https://github.com/pankajnayak1994/pyrept/blob/master/CHANGELOG.md).
 
+## Author
+
+pyrept is developed and maintained by **Pankaj Kumar Nayak** ([@pankajnayak1994](https://github.com/pankajnayak1994)). Issues, ideas and pull requests are welcome.
+
 ## License
 
-[MIT](https://github.com/pankajnayak1994/pyrept/blob/master/LICENSE)
+[MIT](https://github.com/pankajnayak1994/pyrept/blob/master/LICENSE) © Pankaj Kumar Nayak

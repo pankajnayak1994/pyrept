@@ -12,7 +12,8 @@
 - **Converters**: .NET TRX (including data-driven rows and result files), NUnit 3 and 2, xUnit.net v2, Robot Framework 3.x to 7.x, TAP 12 to 14 (plans, SKIP/TODO, YAML diagnostics, bail out), Allure results (retries folded), pytest-json-report, and pyrept JSON (merge shards).
 - **Notifications** to Slack, Microsoft Teams and any webhook, configured with `PYREPT_*_WEBHOOK_URL` and `PYREPT_NOTIFY_ON`; webhook URLs are never logged and delivery failures never fail the run. `PYREPT_REPORT_URL` links the published report.
 - **pytest**: pytest-bdd scenarios show the feature, scenario and each step's status; failing Playwright tests get the browser console output and links to pytest-playwright traces and videos; new hooks `pytest_pyrept_environment`, `pytest_pyrept_attachments` and `pytest_pyrept_context`.
-- **Branding**: `PYREPT_LOGO` and `PYREPT_ACCENT_COLOR`, applied to the HTML only.
+- **Logo and branding**: reports and history pages show the pyrept logo in the header and as the tab icon; `PYREPT_LOGO` replaces it (`none` removes it) and `PYREPT_ACCENT_COLOR` sets the accent colour. Applied to the HTML only.
+- Developer credit (Pankaj Kumar Nayak) in report and history footers, Markdown summaries, `pyrept --version`, the README and the docs site.
 - Documentation site with a live demo report (`mkdocs.yml`, `.github/workflows/docs.yml`), `CONTRIBUTING.md`, issue templates and the `pytest-pyrept` alias package (`packaging/pytest-pyrept`).
 
 ### Changed

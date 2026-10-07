@@ -1,5 +1,7 @@
 # pyrept
 
+![pyrept: a Python snake with HTML, JSON and JUnit reports](images/logo.jpg){ width="420" }
+
 **One test report for every framework and every CI.** pyrept turns a test run into a self-contained HTML page, a JSON file for automation and, if you want, JUnit XML for your CI server. It shows what changed since the last run, and it can put the result straight into your GitHub job summary and pull request.
 
 [See the live demo report](https://pankajnayak1994.github.io/pyrept/demo/report.html){ .md-button .md-button--primary } [Demo history page](https://pankajnayak1994.github.io/pyrept/demo/history.html){ .md-button }
@@ -33,3 +35,7 @@ The comparison panel opens the report whenever you pass a baseline (`--pyrept-ba
 ![History page](images/history.png)
 
 `pyrept history` turns the JSON reports of many runs into pass-rate trends, flaky tests and failure streaks.
+
+---
+
+pyrept is developed and maintained by **Pankaj Kumar Nayak** ([@pankajnayak1994](https://github.com/pankajnayak1994)) and released under the MIT license.

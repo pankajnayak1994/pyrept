@@ -2,8 +2,11 @@
 
 ## Your logo and colour
 
+Reports show the pyrept logo in the header and as the browser tab icon. Use your own, or none:
+
 ```bash
 export PYREPT_LOGO=branding/logo.svg       # image file (embedded, up to 1 MB) or https:// URL
+export PYREPT_LOGO=none                    # no logo
 export PYREPT_ACCENT_COLOR="#0f766e"       # hex colour
 ```
 

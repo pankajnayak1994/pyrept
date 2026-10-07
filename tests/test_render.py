@@ -120,3 +120,69 @@ class TemplateLoadingTests(unittest.TestCase):
         self.assertIn('id="t2"', html)
         self.assertIn('data-duration="2.0"', html)
         self.assertIn('stroke-dasharray="50.000 50.000"', html)  # ring: half passed
+
+
+class DefaultLogoAndSignatureTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def _html(self, **env):
+        for key, value in env.items():
+            os.environ[key] = value  # removed again by the conftest fixture
+        try:
+            c = ReportCollector()
+            c.add('t', 'passed')
+            c.write(os.path.join(self.tmp, 'r.html'), os.path.join(self.tmp, 'r.json'))
+        finally:
+            for key in env:
+                del os.environ[key]
+        with open(os.path.join(self.tmp, 'r.html'), encoding='utf-8') as fh:
+            return fh.read()
+
+    def test_pyrept_logo_is_the_default_logo_and_favicon(self):
+        from pyrept.branding import default_logo
+        logo = default_logo()
+        self.assertTrue(logo.startswith('data:image/jpeg;base64,/9j/'))
+        self.assertLess(len(logo), 12000)  # small enough to embed in every report
+        html = self._html()
+        self.assertIn('<link rel="icon" href="%s">' % logo, html)
+        self.assertIn('<img src="%s" alt="">' % logo, html)
+        with open(os.path.join(self.tmp, 'r.json'), encoding='utf-8') as fh:
+            self.assertNotIn('/9j/', fh.read())
+
+    def test_logo_can_be_turned_off_or_replaced(self):
+        html = self._html(PYREPT_LOGO='none')
+        self.assertNotIn('rel="icon"', html)
+        self.assertIn('class="mark"', html)  # the built-in check mark instead
+        html = self._html(PYREPT_LOGO='https://cdn.example/brand.svg')
+        self.assertIn('<link rel="icon" href="https://cdn.example/brand.svg">', html)
+
+    def test_unusable_logo_falls_back_to_the_pyrept_logo(self):
+        from pyrept.branding import branding_from_env, default_logo
+        with self.assertLogs('pyrept.branding', 'WARNING'):
+            self.assertEqual(branding_from_env({'PYREPT_LOGO': os.path.join(self.tmp, 'missing.png')})['logo'],
+                             default_logo())
+
+    def test_missing_logo_asset(self):
+        from unittest import mock
+        from pyrept import branding
+        branding.default_logo.cache_clear()
+        self.addCleanup(branding.default_logo.cache_clear)
+        with mock.patch.object(branding, 'DEFAULT_LOGO', os.path.join(self.tmp, 'gone.jpg')):
+            self.assertIsNone(branding.default_logo())
+
+    def test_developer_signature(self):
+        from pyrept import AUTHOR, __author__
+        self.assertEqual(AUTHOR, 'Pankaj Kumar Nayak')
+        self.assertEqual(__author__, AUTHOR)
+        self.assertIn('Developed by <a href="https://github.com/pankajnayak1994">Pankaj Kumar Nayak</a>', self._html())
+
+    def test_version_mentions_the_developer(self):
+        import contextlib
+        import io
+        from pyrept.cli import main
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit):
+            main(['--version'])
+        self.assertRegex(out.getvalue(), r'^pyrept \S+, developed by Pankaj Kumar Nayak')

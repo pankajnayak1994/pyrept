@@ -1,5 +1,7 @@
 # Contributing to pyrept
 
+pyrept is developed and maintained by Pankaj Kumar Nayak ([@pankajnayak1994](https://github.com/pankajnayak1994)).
+
 Thanks for helping! Bug reports, new converters, framework integrations and docs fixes are all welcome.
 
 ## Set up

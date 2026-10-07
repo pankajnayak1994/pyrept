@@ -4,13 +4,16 @@ site_url: https://pankajnayak1994.github.io/pyrept/
 repo_url: https://github.com/pankajnayak1994/pyrept
 repo_name: pankajnayak1994/pyrept
 edit_uri: edit/master/docs/
-copyright: MIT licensed
+site_author: Pankaj Kumar Nayak
+copyright: Developed by Pankaj Kumar Nayak · MIT licensed
 
 exclude_docs: |
   demo/
 
 theme:
   name: material
+  logo: images/logo-mark.png
+  favicon: images/logo-mark.png
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
