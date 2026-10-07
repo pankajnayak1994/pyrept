@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Removed
+- The `pytest-pyrept` alias package was dropped before it was ever published; install `pyrept`.
+
 ## 1.3.3
 
 ### Changed
@@ -13,7 +18,7 @@ Version 1.3.2 was not released.
 ## 1.3.1
 
 ### Changed
-- Releases are fully automated: each merged pull request also moves the `v1` tag for the GitHub Action, creates the GitHub release and publishes the `pytest-pyrept` alias package. `[SKIP]` titles or the `skip-release` label merge without a release.
+- Releases are fully automated: each merged pull request also moves the `v1` tag for the GitHub Action, and creates the GitHub release. `[SKIP]` titles or the `skip-release` label merge without a release.
 - A release published by hand in the GitHub UI (for the Marketplace) is uploaded to PyPI automatically.
 - The GitHub Action is listed on the GitHub Marketplace and tested on every pull request (`.github/workflows/test-action.yml`); Dependabot keeps the workflows' actions up to date.
 - Examples use `pankajnayak1994/pyrept@v1` instead of `@master`.
@@ -32,7 +37,7 @@ Version 1.3.2 was not released.
 - **pytest**: pytest-bdd scenarios show the feature, scenario and each step's status; failing Playwright tests get the browser console output and links to pytest-playwright traces and videos; new hooks `pytest_pyrept_environment`, `pytest_pyrept_attachments` and `pytest_pyrept_context`.
 - **Logo and branding**: reports and history pages show the pyrept logo in the header and as the tab icon; `PYREPT_LOGO` replaces it (`none` removes it) and `PYREPT_ACCENT_COLOR` sets the accent colour. Applied to the HTML only.
 - Developer credit (Pankaj Kumar Nayak) in report and history footers, Markdown summaries, `pyrept --version`, the README and the docs site.
-- Documentation site with a live demo report (`mkdocs.yml`, `.github/workflows/docs.yml`), `CONTRIBUTING.md`, issue templates and the `pytest-pyrept` alias package (`packaging/pytest-pyrept`).
+- Documentation site with a live demo report (`mkdocs.yml`, `.github/workflows/docs.yml`), `CONTRIBUTING.md` and issue templates.
 
 ### Changed
 - **New HTML report design**: run verdict header with pass-rate ring, outcome bar and clickable counts; a test map with one square per test; test names split into path and name; per-test duration bars; sort by status, name or duration; `j`/`k` keyboard navigation; filters kept in the URL (`#failed`, `#skipped`, ...); print-friendly output.

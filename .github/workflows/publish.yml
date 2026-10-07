@@ -131,23 +131,6 @@ jobs:
           gh release create "${{ steps.bump.outputs.new_tag }}" dist/* \
             --title "${{ steps.bump.outputs.new_tag }}" --generate-notes --verify-tag
 
-      # pytest-pyrept is an alias package (packaging/pytest-pyrept) released with the same version.
-      # One-time setup on PyPI: add a trusted publisher for the project "pytest-pyrept"
-      # (owner pankajnayak1994, repository pyrept, workflow publish.yml). Until then this step
-      # only warns, so it can never block a pyrept release.
-      - name: Publish the pytest-pyrept alias package
-        continue-on-error: true
-        run: |
-          version="${{ steps.bump.outputs.new_tag }}"
-          version="${version#v}"
-          sed -i -E "s/^version = \".*\"/version = \"$version\"/; s/\"pyrept>=[^\"]*\"/\"pyrept>=$version\"/" \
-            packaging/pytest-pyrept/pyproject.toml
-          python -m build packaging/pytest-pyrept --outdir alias-dist
-          twine upload alias-dist/* --verbose --skip-existing || {
-            echo "::warning::pytest-pyrept was not published; add the PyPI trusted publisher (see the release job)"
-            exit 1
-          }
-
   release-from-ui:
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -193,16 +176,3 @@ jobs:
         run: |
           git tag -f "${TAG%%.*}" "$TAG"
           git push -f origin "refs/tags/${TAG%%.*}"
-
-      - name: Publish the pytest-pyrept alias package
-        continue-on-error: true
-        run: |
-          version="$TAG"
-          version="${version#v}"
-          sed -i -E "s/^version = \".*\"/version = \"$version\"/; s/\"pyrept>=[^\"]*\"/\"pyrept>=$version\"/" \
-            packaging/pytest-pyrept/pyproject.toml
-          python -m build packaging/pytest-pyrept --outdir alias-dist
-          twine upload alias-dist/* --verbose --skip-existing || {
-            echo "::warning::pytest-pyrept was not published; add the PyPI trusted publisher (see the release job)"
-            exit 1
-          }
