@@ -49,11 +49,10 @@ code, pre, .mono { font-family: var(--mono); }
 
 /* top bar */
 .topbar { background: var(--ink); color: var(--ink-text); border-bottom: 1px solid var(--ink-border); }
-.topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 52px; }
+.topbar .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 64px; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: .01em; color: var(--ink-text);
   text-decoration: none; font-size: 15px; }
-.brand img { height: 32px; max-width: 180px; object-fit: contain; border-radius: 8px;
-  box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
+.brand img { height: 48px; max-width: 200px; object-fit: contain; border-radius: 8px; }
 .mark { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center;
   background: linear-gradient(135deg, var(--accent), #22d3ee); box-shadow: 0 0 0 1px rgba(255,255,255,.15) inset; }
 .mark svg { width: 14px; height: 14px; }

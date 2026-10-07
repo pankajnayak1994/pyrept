@@ -13,7 +13,7 @@ exclude_docs: |
 theme:
   name: material
   logo: images/logo-mark.png
-  favicon: images/logo-mark.png
+  favicon: images/favicon.png
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default

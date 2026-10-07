@@ -141,12 +141,13 @@ class DefaultLogoAndSignatureTests(unittest.TestCase):
             return fh.read()
 
     def test_pyrept_logo_is_the_default_logo_and_favicon(self):
-        from pyrept.branding import default_logo
-        logo = default_logo()
-        self.assertTrue(logo.startswith('data:image/jpeg;base64,/9j/'))
-        self.assertLess(len(logo), 12000)  # small enough to embed in every report
+        from pyrept.branding import default_favicon, default_logo
+        logo, favicon = default_logo(), default_favicon()
+        for uri in (logo, favicon):
+            self.assertTrue(uri.startswith('data:image/jpeg;base64,/9j/'))
+        self.assertLess(len(logo) + len(favicon), 25000)  # small enough to embed in every report
         html = self._html()
-        self.assertIn('<link rel="icon" href="%s">' % logo, html)
+        self.assertIn('<link rel="icon" href="%s">' % favicon, html)
         self.assertIn('<img src="%s" alt="">' % logo, html)
         with open(os.path.join(self.tmp, 'r.json'), encoding='utf-8') as fh:
             self.assertNotIn('/9j/', fh.read())
@@ -171,6 +172,8 @@ class DefaultLogoAndSignatureTests(unittest.TestCase):
         self.addCleanup(branding.default_logo.cache_clear)
         with mock.patch.object(branding, 'DEFAULT_LOGO', os.path.join(self.tmp, 'gone.jpg')):
             self.assertIsNone(branding.default_logo())
+            html = self._html()
+        self.assertIn('class="mark"', html)  # falls back to the built-in check mark
 
     def test_developer_signature(self):
         from pyrept import AUTHOR, __author__
