@@ -12,7 +12,12 @@ permissions:
 
 jobs:
   release:
-    if: github.event.pull_request.merged == true
+    # Every merged pull request is released, except ones labelled "skip-release" or titled "[SKIP] ..."
+    # (Dependabot's CI-only updates use the label).
+    if: >-
+      github.event.pull_request.merged == true &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-release') &&
+      !startsWith(github.event.pull_request.title, '[SKIP]')
     runs-on: ubuntu-latest
 
     steps:
@@ -89,6 +94,13 @@ jobs:
           git tag ${{ steps.bump.outputs.new_tag }}
           git push origin ${{ steps.bump.outputs.new_tag }}
 
+      - name: Move the major version tag (v1, v2, ...) used by the GitHub Action
+        run: |
+          new_tag="${{ steps.bump.outputs.new_tag }}"
+          major="${new_tag%%.*}"
+          git tag -f "$major" "$new_tag"
+          git push -f origin "refs/tags/$major"
+
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip
@@ -101,3 +113,28 @@ jobs:
 
       - name: Upload to PyPI
         run: twine upload dist/* --verbose
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.bump.outputs.new_tag }}" dist/* \
+            --title "${{ steps.bump.outputs.new_tag }}" --generate-notes --verify-tag
+
+      # pytest-pyrept is an alias package (packaging/pytest-pyrept) released with the same version.
+      # One-time setup on PyPI: add a trusted publisher for the project "pytest-pyrept"
+      # (owner pankajnayak1994, repository pyrept, workflow publish.yml). Until then this step
+      # only warns, so it can never block a pyrept release.
+      - name: Publish the pytest-pyrept alias package
+        continue-on-error: true
+        run: |
+          version="${{ steps.bump.outputs.new_tag }}"
+          version="${version#v}"
+          sed -i -E "s/^version = \".*\"/version = \"$version\"/; s/\"pyrept>=[^\"]*\"/\"pyrept>=$version\"/" \
+            packaging/pytest-pyrept/pyproject.toml
+          grep -E '^version|pyrept>=' packaging/pytest-pyrept/pyproject.toml
+          python -m build packaging/pytest-pyrept --outdir alias-dist
+          twine upload alias-dist/* --verbose || {
+            echo "::warning::pytest-pyrept was not published; add the PyPI trusted publisher (see publish.yml)"
+            exit 1
+          }

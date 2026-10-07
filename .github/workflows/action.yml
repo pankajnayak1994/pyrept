@@ -1,0 +1,83 @@
+name: Action
+
+# Runs the pyrept GitHub Action from this repository (uses: ./) on every pull request,
+# so action.yml and action/pyrept-action.sh are tested on real runners. The pull request
+# gets a pyrept summary of pyrept's own test suite.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  own-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # setuptools_scm needs tags for the version
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install pyrept from this checkout
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -e .
+          # The action normally installs pyrept from PyPI; test this checkout instead.
+          echo "PYREPT_PYTHON=$(command -v python)" >> "$GITHUB_ENV"
+
+      - name: Run the test suite with pyrept
+        run: python -m pytest -q --pyrept-json=reports/report.json --pyrept-html=reports/report.html --pyrept-title="pyrept test suite"
+
+      - name: Summarise with the action
+        id: pyrept
+        uses: ./
+        with:
+          report: reports/report.json
+          fail-on-failure: true
+
+      - name: Check the outputs
+        run: |
+          test "${{ steps.pyrept.outputs.total }}" -gt 200
+          test "${{ steps.pyrept.outputs.failed }}" = "0"
+          echo "pass rate: ${{ steps.pyrept.outputs.pass-rate }}%"
+
+  convert-from:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install pyrept from this checkout
+        run: |
+          pip install -e .
+          echo "PYREPT_PYTHON=$(command -v python)" >> "$GITHUB_ENV"
+
+      - name: Convert JUnit XML with the action
+        id: pyrept
+        uses: ./
+        with:
+          convert-from: junit
+          convert-inputs: tests/fixtures/junit/*.xml
+          report: out/report.json
+          junit: out/junit.xml
+          title: JUnit fixtures
+          job-summary: 'false'
+          pr-comment: 'false'
+          fail-under: '1'
+
+      - name: Check the converted report
+        run: |
+          test -f out/report.html
+          test -f out/junit.xml
+          test "${{ steps.pyrept.outputs.total }}" -gt 0
+          test "${{ steps.pyrept.outputs.failed }}" -gt 0  # the fixtures contain failures

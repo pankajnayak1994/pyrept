@@ -47,8 +47,17 @@ The suite covers every integration (pytest, unittest, nose2, behave, pytest-bdd)
 
 ## Releases
 
-Merging to `master` tags the version from the PR title and publishes to PyPI. The `pytest-pyrept` alias package in `packaging/pytest-pyrept` is published by hand when pyrept's minimum version there changes:
+Releases are fully automated. When a pull request is merged into `master`, `.github/workflows/publish.yml`:
 
-```bash
-python -m build packaging/pytest-pyrept && twine upload packaging/pytest-pyrept/dist/*
-```
+1. runs the tests, then picks the next version from the PR title (`[MAJOR]`, `[MINOR]`, `[PATCH]`; no prefix means patch) and pushes the tag, for example `v1.4.0`;
+2. moves the major tag (`v1`) to it, so `uses: pankajnayak1994/pyrept@v1` always gets the newest 1.x action;
+3. builds and uploads pyrept to PyPI (trusted publishing, no token);
+4. creates the GitHub release with generated notes and the built files;
+5. publishes the `pytest-pyrept` alias package with the same version.
+
+Pull requests titled `[SKIP] ...` or labelled `skip-release` (Dependabot's weekly action updates) are merged without a release. The docs site and live demo redeploy on every push to `master` (`.github/workflows/docs.yml`), and `.github/workflows/action.yml` tests the GitHub Action itself on every pull request.
+
+One-time setup that cannot be automated:
+
+- **PyPI:** add a trusted publisher for the project `pytest-pyrept` (owner `pankajnayak1994`, repository `pyrept`, workflow `publish.yml`). Until then the alias step only warns.
+- **GitHub Marketplace:** edit a release and tick "Publish this Action to the GitHub Marketplace". GitHub has no API for this, so the Marketplace page shows the version you last published there; `@v1` always gets the newest release regardless.

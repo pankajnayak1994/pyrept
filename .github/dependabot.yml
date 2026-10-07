@@ -1,0 +1,10 @@
+# Keeps the actions used by the workflows and by action.yml up to date (weekly pull requests).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [skip-release, dependencies]
+    commit-message:
+      prefix: "[SKIP]"

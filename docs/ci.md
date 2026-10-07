@@ -16,7 +16,7 @@ steps:
       python-version: '3.13'
   - run: pip install pyrept && pytest --pyrept-json=reports/report.json --pyrept-html=reports/report.html
     continue-on-error: true            # let the action decide whether the job fails
-  - uses: pankajnayak1994/pyrept@master
+  - uses: pankajnayak1994/pyrept@v1
     with:
       report: reports/report.json
       fail-on-failure: true
@@ -32,7 +32,7 @@ Any language works through `convert-from`:
 ```yaml
   - run: mvn test
     continue-on-error: true
-  - uses: pankajnayak1994/pyrept@master
+  - uses: pankajnayak1994/pyrept@v1
     with:
       convert-from: junit
       convert-inputs: target/surefire-reports/*.xml
@@ -55,6 +55,8 @@ Any language works through `convert-from`:
 | `version` | latest | pyrept version to install. |
 
 Outputs: `total`, `passed`, `failed`, `errors`, `skipped`, `pass-rate` and `new-failures`.
+
+`@v1` always points to the newest 1.x release; pin an exact release such as `@v1.3.0` if you prefer.
 
 Without the action, `pytest --pyrept-github-summary` (or `pyrept summary report.json --github-summary`) writes the same job summary.
 

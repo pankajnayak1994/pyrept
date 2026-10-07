@@ -432,7 +432,7 @@ steps:
       python-version: '3.13'
   - run: pip install pyrept && pytest --pyrept-json=reports/report.json --pyrept-html=reports/report.html
     continue-on-error: true            # let the action decide whether the job fails
-  - uses: pankajnayak1994/pyrept@master
+  - uses: pankajnayak1994/pyrept@v1
     with:
       report: reports/report.json
       fail-on-failure: true
@@ -443,7 +443,7 @@ For other languages, convert their report in the same step:
 ```yaml
   - run: mvn test
     continue-on-error: true
-  - uses: pankajnayak1994/pyrept@master
+  - uses: pankajnayak1994/pyrept@v1
     with:
       convert-from: junit
       convert-inputs: target/surefire-reports/*.xml
@@ -463,7 +463,7 @@ For other languages, convert their report in the same step:
 | `notify` | `false` | Send the [notifications](#notifications) configured in the environment. |
 | `version` | latest | pyrept version to install. |
 
-Outputs: `total`, `passed`, `failed`, `errors`, `skipped`, `pass-rate` and `new-failures`. Pin the action to a release tag (for example `@v1.3.0`) in production workflows.
+Outputs: `total`, `passed`, `failed`, `errors`, `skipped`, `pass-rate` and `new-failures`. `@v1` always points to the newest 1.x release; pin an exact release such as `@v1.3.0` if you prefer.
 
 ## Markdown and GitHub job summaries
 
