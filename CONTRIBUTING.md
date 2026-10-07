@@ -55,9 +55,9 @@ Releases are fully automated. When a pull request is merged into `master`, `.git
 4. creates the GitHub release with generated notes and the built files;
 5. publishes the `pytest-pyrept` alias package with the same version.
 
-Pull requests titled `[SKIP] ...` or labelled `skip-release` (Dependabot's weekly action updates) are merged without a release. The docs site and live demo redeploy on every push to `master` (`.github/workflows/docs.yml`), and `.github/workflows/action.yml` tests the GitHub Action itself on every pull request.
+Pull requests titled `[SKIP] ...` or labelled `skip-release` (Dependabot's weekly action updates) are merged without a release. The docs site and live demo redeploy on every push to `master` (`.github/workflows/docs.yml`), and `.github/workflows/test-action.yml` tests the GitHub Action itself on every pull request.
 
 One-time setup that cannot be automated:
 
 - **PyPI:** add a trusted publisher for the project `pytest-pyrept` (owner `pankajnayak1994`, repository `pyrept`, workflow `publish.yml`). Until then the alias step only warns.
-- **GitHub Marketplace:** edit a release and tick "Publish this Action to the GitHub Marketplace". GitHub has no API for this, so the Marketplace page shows the version you last published there; `@v1` always gets the newest release regardless.
+- **GitHub Marketplace:** the repository may contain only one file named `action.yml` (the action at the root), so never name a workflow `action.yml`. To list the action, edit a release and tick "Publish this Action to the GitHub Marketplace". GitHub has no API for this, so the Marketplace page shows the version you last published there; `@v1` always gets the newest release regardless.
