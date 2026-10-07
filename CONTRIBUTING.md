@@ -52,10 +52,9 @@ Releases are fully automated. When a pull request is merged into `master`, `.git
 1. runs the tests, then picks the next version from the PR title (`[MAJOR]`, `[MINOR]`, `[PATCH]`; no prefix means patch) and pushes the tag, for example `v1.4.0`;
 2. moves the major tag (`v1`) to it, so `uses: pankajnayak1994/pyrept@v1` always gets the newest 1.x action;
 3. builds and uploads pyrept to PyPI (trusted publishing, no token);
-4. creates the GitHub release with generated notes and the built files;
-5. publishes the `pytest-pyrept` alias package with the same version.
+4. creates the GitHub release with generated notes and the built files.
 
-A release you publish yourself in the GitHub UI (for example to update the Marketplace listing) is handled by the same workflow: it runs the tests, moves the major tag and uploads that version to PyPI and `pytest-pyrept`. Create it on a **new** version tag such as `v1.4.0`: the repository uses immutable releases, so a tag that once had a release can never get another one, even after deleting it.
+A release you publish yourself in the GitHub UI (for example to update the Marketplace listing) is handled by the same workflow: it runs the tests, moves the major tag and uploads that version to PyPI. Create it on a **new** version tag such as `v1.4.0`: the repository uses immutable releases, so a tag that once had a release can never get another one, even after deleting it.
 
 If an upload ever fails, re-publish a version tag from Actions → "Auto Tag + Publish to PyPI" → Run workflow, with the tag (for example `v1.3.1`); files already on PyPI are skipped.
 
@@ -63,5 +62,4 @@ Pull requests titled `[SKIP] ...` or labelled `skip-release` (Dependabot's weekl
 
 One-time setup that cannot be automated:
 
-- **PyPI:** add a trusted publisher for the project `pytest-pyrept` (owner `pankajnayak1994`, repository `pyrept`, workflow `publish.yml`). Until then the alias step only warns.
-- **GitHub Marketplace:** the repository may contain only one file named `action.yml` (the action at the root), so never name a workflow `action.yml`. To list the action, edit a release and tick "Publish this Action to the GitHub Marketplace". GitHub has no API for this, so the Marketplace page shows the version you last published there; `@v1` always gets the newest release regardless.
+- **GitHub Marketplace:** the repository may contain only one file named `action.yml` (the action at the root), so never name a workflow `action.yml`. To update the listing, publish a release from the GitHub UI on a new version tag (for example `v1.3.4`, target `master`) and tick "Publish this Action to the GitHub Marketplace"; the workflow then uploads that version to PyPI. GitHub has no API for this, so the Marketplace page shows the version you last published there; `@v1` always gets the newest release regardless.
