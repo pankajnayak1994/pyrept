@@ -25,7 +25,7 @@ jobs:
           fetch-depth: 0  # setuptools_scm needs tags for the version
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true  # 3.15 until its final release
